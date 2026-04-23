@@ -5,29 +5,37 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
 
+// ==========================================
+// MIDDLEWARE (GERBANG KEAMANAN & PENGATURAN DATA)
+// ==========================================
+// 1. Mengizinkan frontend (React) berkomunikasi dengan backend (CORS)
 app.use(cors());
-// Menaikkan limit untuk menerima foto Base64 yang besar
+
+// 2. Mengatur batas ukuran data yang bisa diterima server.
+// Sangat krusial: Kita atur ke '50mb' agar server tidak menolak/crash 
+// saat admin mengunggah foto menu berukuran besar (format Base64).
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Rute Dasar
+// Rute Dasar (Pengecekan Kesehatan Server)
 app.get('/', (req, res) => {
-  res.send('Halo! Server Semesta Cafe sudah berjalan.');
+  res.send('Server Semesta Cafe beroperasi optimal.');
 });
 
 // ==========================================
-// 1. API KATEGORI (Ditingkatkan)
+// 1. API KATEGORI MENU
 // ==========================================
+// [GET] Menarik daftar kategori untuk ditampilkan di dropdown admin/user
 app.get('/api/categories', async (req, res) => {
   try {
     const [categories] = await db.query('SELECT * FROM categories ORDER BY name ASC');
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ error: "Gagal mengambil kategori" });
+    res.status(500).json({ error: "Gagal mengambil daftar kategori" });
   }
 });
 
-// Endpoint untuk menambah kategori baru (Misal: Promo Ramadhan)
+// [POST] Admin membuat kategori baru
 app.post('/api/categories', async (req, res) => {
   const { name, description } = req.body;
   if (!name) return res.status(400).json({ error: "Nama kategori wajib diisi!" });
@@ -40,8 +48,9 @@ app.post('/api/categories', async (req, res) => {
 });
 
 // ==========================================
-// 2. API MENU (Perbaikan Logika category_id)
+// 2. API KATALOG MENU (PRODUK)
 // ==========================================
+// [GET] Menarik semua menu beserta nama kategorinya (menggunakan JOIN)
 app.get('/api/menus', async (req, res) => {
   try {
     const [menus] = await db.query(`
@@ -51,14 +60,18 @@ app.get('/api/menus', async (req, res) => {
     `);
     res.json(menus);
   } catch (error) {
-    res.status(500).json({ error: "Gagal mengambil menu" });
+    res.status(500).json({ error: "Gagal mengambil data menu" });
   }
 });
 
+// [POST] Admin memposting menu baru beserta gambarnya
 app.post('/api/menus', async (req, res) => {
   const { category_id, name, price, is_available, image_url } = req.body;
-  // Validasi ketat agar tidak NULL
-  if (!category_id || !name || !price) return res.status(400).json({ error: "Data tidak lengkap! Kategori wajib dipilih." });
+  
+  // Validasi: Cegah masuknya data kosong yang bisa membuat database error
+  if (!category_id || !name || !price) {
+    return res.status(400).json({ error: "Nama, Harga, dan Kategori wajib diisi." });
+  }
 
   try {
     const [result] = await db.query(
@@ -67,15 +80,15 @@ app.post('/api/menus', async (req, res) => {
     );
     res.status(201).json({ message: "Menu berhasil diposting!", insertId: result.insertId });
   } catch (error) {
-    console.error("DB Error:", error.message);
-    res.status(500).json({ error: `Gagal simpan: ${error.message}` });
+    console.error("DB Error (Insert Menu):", error.message);
+    res.status(500).json({ error: `Gagal menyimpan ke database: ${error.message}` });
   }
 });
 
+// [PUT] Admin mengubah data menu yang sudah ada
 app.put('/api/menus/:id', async (req, res) => {
   const { name, price, category_id, is_available, image_url } = req.body;
-  // Proteksi: Jika category_id null, kirim error
-  if (!category_id) return res.status(400).json({ error: "Kategori tidak boleh kosong saat update!" });
+  if (!category_id) return res.status(400).json({ error: "Kategori tidak valid." });
 
   try {
     await db.query(
@@ -84,33 +97,34 @@ app.put('/api/menus/:id', async (req, res) => {
     );
     res.json({ message: "Menu berhasil diperbarui!" });
   } catch (error) {
-    console.error("DB Update Error:", error.message);
-    res.status(500).json({ error: `Gagal update: ${error.message}` });
+    res.status(500).json({ error: "Gagal memperbarui menu." });
   }
 });
 
+// [DELETE] Admin menghapus menu secara permanen
 app.delete('/api/menus/:id', async (req, res) => {
   try {
     await db.query(`DELETE FROM menus WHERE id = ?`, [req.params.id]);
     res.json({ message: "Menu dihapus." });
   } catch (error) {
-    res.status(500).json({ error: "Gagal hapus" });
+    res.status(500).json({ error: "Gagal menghapus menu." });
   }
 });
 
 // ==========================================
-// 3. API PESANAN (Checkout & Kasir + Cerdas)
+// 3. API TRANSAKSI PESANAN (KASIR & PELANGGAN)
 // ==========================================
+// [GET] Admin menarik riwayat seluruh pesanan
 app.get('/api/orders', async (req, res) => {
   try {
     const [orders] = await db.query('SELECT * FROM orders ORDER BY id DESC');
     res.json(orders);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: "Gagal mengambil data pesanan" });
   }
 });
 
+// [POST] Pelanggan membuat pesanan baru (Checkout Logic)
 app.post('/api/orders', async (req, res) => {
   const { customer_name, order_type, table_number, items, existing_order_id } = req.body;
   
@@ -121,9 +135,11 @@ app.post('/api/orders', async (req, res) => {
   try {
     let targetOrderId = null; 
 
+    // --- LOGIKA CERDAS: PENCEGAHAN BENTROK MEJA (DINE-IN) ---
     if (order_type === 'Dine-in' && table_number) {
       const cleanTableNumber = table_number.trim().toLowerCase();
 
+      // Cek 1: Apakah meja ini sedang dipakai pesanan aktif?
       const [activeOrders] = await db.query(`
         SELECT id FROM orders 
         WHERE LOWER(TRIM(table_number)) = ? 
@@ -133,13 +149,15 @@ app.post('/api/orders', async (req, res) => {
 
       if (activeOrders.length > 0) {
         const activeId = activeOrders[0].id;
+        // Jika pelanggan yang sama menambah pesanan dari HP-nya
         if (existing_order_id && parseInt(existing_order_id) === activeId) {
           targetOrderId = activeId; 
         } else {
-          return res.status(400).json({ error: `Maaf, ${table_number} sedang digunakan pelanggan lain.` });
+          return res.status(400).json({ error: `Maaf, ${table_number} sedang digunakan.` });
         }
       }
 
+      // Cek 2: Apakah meja ini direservasi oleh orang lain hari ini?
       if (!targetOrderId) {
         const [activeReservations] = await db.query(`
           SELECT id FROM reservations 
@@ -149,11 +167,13 @@ app.post('/api/orders', async (req, res) => {
         `, [cleanTableNumber]);
 
         if (activeReservations.length > 0) {
-          return res.status(400).json({ error: `Maaf, ${table_number} sudah direservasi untuk hari ini.` });
+          return res.status(400).json({ error: `Maaf, ${table_number} sudah direservasi.` });
         }
       }
     }
+    // --- AKHIR LOGIKA CERDAS ---
 
+    // Jika lolos pengecekan, buat ID Tagihan Baru
     if (!targetOrderId) {
       const [orderResult] = await db.query(
         `INSERT INTO orders (customer_name, order_type, table_number) VALUES (?, ?, ?)`, 
@@ -162,6 +182,7 @@ app.post('/api/orders', async (req, res) => {
       targetOrderId = orderResult.insertId;
     }
 
+    // Masukkan detail menu yang dipesan ke tabel order_items
     for (const item of items) {
       await db.query(
         `INSERT INTO order_items (order_id, menu_id, quantity) VALUES (?, ?, ?)`,
@@ -171,12 +192,11 @@ app.post('/api/orders', async (req, res) => {
     
     res.status(201).json({ message: "Pesanan berhasil diproses.", order_id: targetOrderId });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: "Gagal membuat pesanan akibat kesalahan server." });
   }
 });
 
-// Pembayaran Kasir
+// [POST] Admin / Kasir memproses pembayaran tagihan
 app.post('/api/orders/:id/pay', async (req, res) => {
   const orderId = req.params.id;
   const { uang_bayar, payment_method } = req.body;
@@ -184,16 +204,18 @@ app.post('/api/orders/:id/pay', async (req, res) => {
   if (!uang_bayar) return res.status(400).json({ error: "Jumlah uang harus diisi!" });
 
   try {
+    // Memanggil fungsi Stored Procedure di MySQL untuk menghitung kembalian & ubah status
     await db.query(`CALL proses_pembayaran(?, ?)`, [orderId, uang_bayar]);
     const metode = payment_method || 'Cash';
     await db.query(`UPDATE orders SET payment_method = ? WHERE id = ?`, [metode, orderId]);
+    
+    // Ambil data struk terbaru untuk ditampilkan di layar kasir
     const [strukTerbaru] = await db.query(`SELECT * FROM orders WHERE id = ?`, [orderId]);
-
     res.json({ message: "Pembayaran berhasil diproses!", data: strukTerbaru[0] });
   } catch (error) {
+    // Tangkap error jika uang kurang (State '45000' dari Stored Procedure)
     if (error.sqlState === '45000') return res.status(400).json({ error: error.sqlMessage });
-    console.error(error);
-    res.status(500).json({ error: "Gagal memproses pembayaran" });
+    res.status(500).json({ error: "Gagal memproses pembayaran." });
   }
 });
 
@@ -209,8 +231,7 @@ app.post('/api/reservations', async (req, res) => {
     );
     res.status(201).json({ message: 'Reservasi terkirim!', id: result.insertId });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Gagal membuat reservasi' });
+    res.status(500).json({ error: 'Gagal membuat reservasi.' });
   }
 });
 
@@ -219,11 +240,11 @@ app.get('/api/reservations', async (req, res) => {
     const [reservations] = await db.query(`SELECT * FROM reservations ORDER BY created_at DESC`);
     res.json(reservations);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Gagal mengambil data reservasi' });
+    res.status(500).json({ error: 'Gagal mengambil data reservasi.' });
   }
 });
 
+// [PUT] Admin mengubah status reservasi (Terima/Tolak) dan mengatur meja
 app.put('/api/reservations/:id/status', async (req, res) => {
   const { status, table_number } = req.body;
   try {
@@ -231,23 +252,27 @@ app.put('/api/reservations/:id/status', async (req, res) => {
       `UPDATE reservations SET status = ?, table_number = ? WHERE id = ?`, 
       [status, table_number || 'Belum Set', req.params.id]
     );
-    res.json({ message: `Reservasi diubah menjadi ${status}` });
+    res.json({ message: `Reservasi berhasil ${status}` });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Gagal merubah status reservasi' });
+    res.status(500).json({ error: 'Gagal merubah status reservasi.' });
   }
 });
 
 // ==========================================
-// 5. API DASHBOARD & LOGIN
+// 5. API DASHBOARD (STATISTIK) & LOGIN ADMIN
 // ==========================================
+// [GET] Menghitung rekap data untuk grafik dan indikator di layar Admin
 app.get('/api/dashboard/summary', async (req, res) => {
   try {
     const [salesData] = await db.query(`SELECT COUNT(id) AS total_pesanan, SUM(total_amount) AS total_omzet FROM orders WHERE status = 'Selesai'`);
     const [productData] = await db.query(`SELECT COUNT(id) AS total_produk FROM menus`);
     const [statusData] = await db.query(`SELECT status as name, COUNT(id) as value FROM orders GROUP BY status`);
+    
+    // Mencari 5 menu paling laris berdasarkan jumlah kuantitas yang dipesan
     const [topMenuData] = await db.query(`
-      SELECT m.name, SUM(oi.quantity) as terjual FROM order_items oi JOIN menus m ON oi.menu_id = m.id GROUP BY m.id ORDER BY terjual DESC LIMIT 5
+      SELECT m.name, SUM(oi.quantity) as terjual 
+      FROM order_items oi JOIN menus m ON oi.menu_id = m.id 
+      GROUP BY m.id ORDER BY terjual DESC LIMIT 5
     `);
 
     res.json({
@@ -260,20 +285,23 @@ app.get('/api/dashboard/summary', async (req, res) => {
       topMenus: topMenuData
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Terjadi kesalahan server" });
+    res.status(500).json({ error: "Gagal memuat statistik." });
   }
 });
 
+// [POST] Verifikasi kredensial Admin
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
+  // Keamanan level dasar untuk aplikasi UMKM. 
+  // Bisa di-upgrade dengan enkripsi bcrypt jika diperlukan di masa depan.
   if (username === 'admin' && password === 'semesta123') {
-    res.json({ success: true, message: "Login berhasil!", token: "semesta-super-secret-token-2026" });
+    res.json({ success: true, message: "Akses diizinkan.", token: "semesta-super-secret-token-2026" });
   } else {
     res.status(401).json({ error: "Username atau Password salah!" });
   }
 });
 
+// Menjalankan server pada port yang ditentukan
 app.listen(port, () => {
-  console.log(`Server backend berjalan di http://localhost:${port}`);
+  console.log(`Server backend Semesta beroperasi di port ${port}`);
 });
