@@ -17,9 +17,159 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-@keyframes toastFade {
-  0%   { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
-  80%  { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+/* --- TAMPILAN MODAL CHECKOUT MODERN --- */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.custom-modal-box {
+  background: #fff;
+  padding: 30px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  text-align: center;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-modal-box h3 {
+  font-family: 'Playfair Display', serif;
+  color: #1C2B1E;
+  margin-bottom: 8px;
+  font-size: 22px;
+}
+
+.custom-modal-box p {
+  font-size: 13px;
+  color: #6B7A6E;
+  margin-bottom: 20px;
+}
+
+.custom-modal-box input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid #E0EBE3;
+  border-radius: 8px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  margin-bottom: 24px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.custom-modal-box input:focus {
+  border-color: #1B8A4C;
+}
+
+.custom-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.custom-modal-actions button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.btn-cancel {
+  background: #F4F8F5;
+  color: #6B7A6E;
+}
+
+.btn-submit {
+  background: #1B8A4C;
+  color: #fff;
+}
+
+.custom-modal-actions button:hover {
+  opacity: 0.85;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- NOTIFIKASI MODERN (TOAST) --- */
+.toast-notification {
+  position: fixed;
+  top: 40px; 
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(28, 43, 30, 0.95); 
+  backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 14px 28px;
+  border-radius: 50px; 
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  z-index: 1000; 
+  white-space: nowrap;
+  animation: slideDownFade 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes slideDownFade {
+  0%   { opacity: 0; transform: translate(-50%, -20px); }
+  10%  { opacity: 1; transform: translate(-50%, 0); }
+  85%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* --- ANIMASI HALUS UNTUK HERO SECTION --- */
+.fade-in-up {
+  animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0; 
+}
+
+.delay-1 { animation-delay: 0.2s; }
+.delay-2 { animation-delay: 0.4s; }
+.delay-3 { animation-delay: 0.6s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================
+   EFEK HOVER MERAH UNTUK TOMBOL BATAL/TUTUP
+   (Ditambahkan untuk meningkatkan UX)
+   ========================================= */
+
+/* Efek untuk tombol Batal di Modal */
+.btn-cancel:hover {
+  background-color: #fee2e2 !important; /* Merah sangat muda */
+  color: #dc3545 !important; /* Merah terang */
+  border-color: #f87171 !important;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Efek untuk tombol X (Tutup) di Keranjang dan Reservasi */
+.cart-close:hover, 
+.res-close:hover,
+.modal-icon-header svg:hover {
+  color: #dc3545 !important; /* Berubah jadi merah */
+  transform: scale(1.1); /* Sedikit membesar */
+  transition: all 0.2s ease-in-out;
 }

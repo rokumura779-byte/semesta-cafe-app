@@ -20,25 +20,34 @@
   align-items: center;
   justify-content: space-between;
 }
+
+/* Pengaturan Logo Gambar */
 .navbar-brand {
-  text-decoration: none;
   display: flex;
-  flex-direction: column;
-  line-height: 1;
+  align-items: center;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.95); /* Latar belakang putih agak transparan */
+  padding: 6px 14px; /* Bantalan kiri-kanan-atas-bawah */
+  border-radius: 30px; /* Membuat sudutnya sangat melengkung (seperti pil) */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Efek bayangan halus */
+  transition: transform 0.2s;
 }
-.brand-main {
-  font-family: 'Playfair Display', serif;
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
-  letter-spacing: 0.5px;
+
+.navbar-brand:hover {
+  transform: translateY(-2px); /* Efek melayang sedikit saat disentuh kursor */
 }
-.brand-sub {
-  font-family: 'Playfair Display', serif;
-  font-size: 13px;
-  font-style: italic;
-  color: rgba(255,255,255,0.75);
+
+.navbar-logo-img {
+  height: 28px; /* Sedikit dikecilkan karena sudah ada bantalan di luarnya */
+  width: auto;
+  display: block;
 }
+.navbar-logo-img {
+  height: 35px;
+  width: auto;
+  display: block;
+}
+
 .navbar-links {
   display: flex;
   align-items: center;
@@ -69,15 +78,33 @@
   border: 1.5px solid rgba(255,255,255,0.5);
 }
 .res-btn:hover { background: rgba(255,255,255,0.15); border-color: #fff; }
-.cart-btn {
+
+/* Area Kanan Navbar (Keranjang & Hamburger) */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px; 
+}
+
+/* Tombol Keranjang Mobile */
+.cart-btn-mobile {
   background: #F5A623;
   color: #fff;
   border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* Jarak antara ikon dan teks */
+  position: relative;
+  transition: transform 0.15s, background 0.2s;
 }
-.cart-btn:hover { background: #D4891A; }
+.cart-btn-mobile:hover { background: #D4891A; }
+.cart-btn-mobile:active { transform: scale(0.95); }
+
 .cart-badge {
   background: #fff;
   color: #1B8A4C;
@@ -90,6 +117,7 @@
   align-items: center;
   justify-content: center;
 }
+
 .hamburger {
   display: none;
   flex-direction: column;
@@ -127,4 +155,12 @@
   .navbar-links.open { display: flex; }
   .nav-link { width: 100%; }
   .nav-btn { width: 100%; justify-content: center; }
+  
+  /* Sembunyikan teks keranjang di layar kecil */
+  .cart-text { display: none; }
+  .cart-btn-mobile {
+    padding: 8px 12px;
+    font-size: 18px;
+  }
+  .navbar-right { gap: 10px; }
 }

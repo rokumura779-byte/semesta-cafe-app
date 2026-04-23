@@ -1,3 +1,4 @@
+import { FaWhatsapp, FaInstagram, FaMapMarkerAlt } from "react-icons/fa";
 import "../styles/contact.css";
 
 export default function Contact() {
@@ -11,8 +12,11 @@ export default function Contact() {
         </div>
 
         <div className="contact-grid">
+          {/* KARTU WHATSAPP */}
           <div className="contact-card">
-            <div className="contact-card-icon">📱</div>
+            <div className="contact-card-icon" style={{ color: "#25D366" }}>
+              <FaWhatsapp size={45} />
+            </div>
             <h3>WhatsApp</h3>
             <p>0889 5772 061</p>
             <a
@@ -25,8 +29,11 @@ export default function Contact() {
             </a>
           </div>
 
+          {/* KARTU INSTAGRAM */}
           <div className="contact-card">
-            <div className="contact-card-icon">📸</div>
+            <div className="contact-card-icon" style={{ color: "#E1306C" }}>
+              <FaInstagram size={45} />
+            </div>
             <h3>Instagram</h3>
             <p>@semesta_cafe</p>
             <a
@@ -39,11 +46,21 @@ export default function Contact() {
             </a>
           </div>
 
+          {/* KARTU LOKASI (GOOGLE MAPS) */}
           <div className="contact-card">
-            <div className="contact-card-icon">📍</div>
+            <div className="contact-card-icon" style={{ color: "#EA4335" }}>
+              <FaMapMarkerAlt size={45} />
+            </div>
             <h3>Lokasi</h3>
             <p>Area UMP Kampus 1<br />Purwokerto</p>
-            <span className="contact-link-disabled">Free Delivery</span>
+            <a
+              href="https://maps.google.com/?q=Universitas+Muhammadiyah+Purwokerto+Kampus+1"
+              target="_blank"
+              rel="noreferrer"
+              className="contact-link"
+            >
+              Buka di Google Maps
+            </a>
           </div>
         </div>
       </div>

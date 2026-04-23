@@ -1,11 +1,28 @@
+import { FaCoffee, FaUtensils, FaTruck, FaCalendarCheck } from "react-icons/fa";
 import "../styles/about.css";
 
 export default function About() {
   const features = [
-    { icon: "☕", title: "Kopi Berkualitas", desc: "Biji kopi pilihan diproses dengan teknik manual brew & espresso terbaik." },
-    { icon: "🍽️", title: "Menu Beragam", desc: "Dari nasi goreng hingga rice bowl, semua tersedia dengan harga terjangkau." },
-    { icon: "🚚", title: "Free Delivery", desc: "Pesan dari area UMP Kampus 1, kami antar tanpa biaya tambahan." },
-    { icon: "📅", title: "Reservasi Mudah", desc: "Pilih meja, isi data, dan konfirmasi — reservasi selesai dalam hitungan detik." },
+    { 
+      icon: <FaCoffee size={36} color="#6E4A35" />, 
+      title: "Kopi Berkualitas", 
+      desc: "Biji kopi pilihan diproses dengan teknik manual brew & espresso terbaik." 
+    },
+    { 
+      icon: <FaUtensils size={32} color="#8A9CA8" />, 
+      title: "Menu Beragam", 
+      desc: "Dari nasi goreng hingga rice bowl, semua tersedia dengan harga terjangkau." 
+    },
+    { 
+      icon: <FaTruck size={36} color="#F5A623" />, 
+      title: "Free Delivery", 
+      desc: "Pesan dari area UMP Kampus 1, kami antar tanpa biaya tambahan." 
+    },
+    { 
+      icon: <FaCalendarCheck size={34} color="#4A90E2" />, 
+      title: "Reservasi Mudah", 
+      desc: "Pilih meja, isi data, dan konfirmasi — reservasi selesai dalam hitungan detik." 
+    },
   ];
 
   return (
@@ -22,7 +39,7 @@ export default function About() {
         <div className="about-grid">
           {features.map((f) => (
             <div key={f.title} className="about-card">
-              <div className="about-card-icon">{f.icon}</div>
+              <div className="about-card-icon-modern">{f.icon}</div>
               <h3 className="about-card-title">{f.title}</h3>
               <p className="about-card-desc">{f.desc}</p>
             </div>
@@ -30,6 +47,7 @@ export default function About() {
         </div>
 
         <div className="about-info">
+          {/* ... bagian ini tetap sama ... */}
           <div className="about-info-item">
             <span className="info-label">Jam Operasional</span>
             <span className="info-value">Senin – Sabtu, 09.00 – 21.00 WIB</span>

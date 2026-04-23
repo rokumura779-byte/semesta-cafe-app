@@ -1,0 +1,984 @@
+/* --- frontend/src/admin/Admin.css --- */
+
+/* =========================================
+   1. LAYOUT UTAMA & TIPOGRAFI
+   ========================================= */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #F4F8F5; /* Disesuaikan dengan warna latar user */
+  font-family: 'Nunito', sans-serif;
+  flex-direction: row; 
+}
+
+.admin-content {
+  flex: 1;
+  overflow-x: hidden;
+  width: 100%;
+  padding-bottom: 20px;
+}
+
+.admin-container {
+  padding: 30px;
+}
+
+/* =========================================
+   2. HEADER & CARD OVERVIEW
+   ========================================= */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.admin-title { 
+  color: #1C2B1E; /* Hijau sangat gelap */
+  font-family: 'Playfair Display', serif;
+  font-size: 28px; 
+  font-weight: 600; 
+  margin-bottom: 5px; 
+}
+
+.admin-subtitle { 
+  color: #6B7A6E; 
+  margin: 0; 
+}
+
+.export-buttons { 
+  display: flex; 
+  gap: 10px; 
+}
+
+.btn-export { 
+  padding: 8px 15px; 
+  background-color: white; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  font-weight: bold; 
+  transition: all 0.2s; 
+}
+
+.btn-pdf { border: 1px solid #dc3545; color: #dc3545; }
+.btn-pdf:hover { background-color: #dc3545; color: white; }
+.btn-excel { border: 1px solid #1B8A4C; color: #1B8A4C; } /* Warna hijau Semesta */
+.btn-excel:hover { background-color: #1B8A4C; color: white; }
+
+.kpi-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+  gap: 20px; 
+  margin-bottom: 30px; 
+}
+
+.admin-card { 
+  background-color: white; 
+  padding: 24px; 
+  border-radius: 16px; 
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+}
+
+.kpi-label { 
+  color: #6B7A6E; 
+  font-size: 13px; 
+  font-weight: bold; 
+  margin: 0 0 8px 0; 
+}
+
+.kpi-value { 
+  color: #1B8A4C; 
+  margin: 0; 
+  font-size: 32px; 
+  font-family: 'Playfair Display', serif;
+}
+
+.chart-grid { 
+  display: grid; 
+  grid-template-columns: 2fr 1fr; 
+  gap: 20px; 
+}
+
+.admin-card-title { 
+  color: #1C2B1E; 
+  margin-top: 0; 
+  font-family: 'Playfair Display', serif;
+}
+
+/* =========================================
+   3. TABEL DATA (RESPONSIVE)
+   ========================================= */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  margin-top: 15px; 
+  white-space: nowrap; 
+}
+
+.admin-table th { 
+  padding-bottom: 12px; 
+  border-bottom: 2px solid #E0EBE3; 
+  color: #6B7A6E; 
+  text-align: left; 
+  font-weight: 700;
+}
+
+.admin-table td { 
+  padding: 15px 10px 15px 0; 
+  border-bottom: 1px solid #EEF3EF; 
+  color: #1C2B1E;
+}
+
+/* =========================================
+   4. SIDEBAR DESKTOP
+   ========================================= */
+.sidebar-container {
+  background-color: #fff; 
+  border-right: 1px solid #E0EBE3; 
+  transition: width 0.3s ease;
+  display: flex; 
+  flex-direction: column; 
+  position: relative; 
+  z-index: 50;
+}
+
+.sidebar-toggle-btn {
+  position: absolute; 
+  right: -15px; 
+  top: 30px; 
+  width: 30px; 
+  height: 30px; 
+  border-radius: 50%;
+  background-color: #fff; 
+  border: 1px solid #E0EBE3; 
+  cursor: pointer; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  color: #1C2B1E;
+}
+
+.sidebar-menu-item { 
+  display: flex; 
+  align-items: center; 
+  padding: 12px 20px; 
+  margin: 8px 15px; 
+  border-radius: 10px; 
+  text-decoration: none; 
+  color: #6B7A6E; 
+  transition: all 0.2s; 
+}
+
+.sidebar-menu-item.active { 
+  background-color: #1B8A4C; 
+  color: #fff; 
+  font-weight: bold; 
+}
+
+.sidebar-menu-item:hover:not(.active) { 
+  background-color: #E8F7EE; 
+  color: #1B8A4C;
+}
+
+/* =========================================
+   5. FORM MENU & STATUS BADGE
+   ========================================= */
+.admin-form-box { 
+  padding: 24px; 
+  margin-bottom: 24px; 
+  border-radius: 12px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 15px; 
+}
+
+.mode-tambah { background-color: #fff; border: 1px solid #E0EBE3; }
+.mode-edit { background-color: #FFF4E0; border: 1.5px solid #F5A623; }
+
+.form-inputs-row { 
+  display: flex; 
+  gap: 12px; 
+  flex-wrap: wrap; 
+}
+
+.admin-input { 
+  padding: 12px; 
+  border: 1.5px solid #E0EBE3; 
+  border-radius: 8px; 
+  flex: 1; 
+  min-width: 150px;
+  font-family: 'Nunito', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.admin-input:focus {
+  border-color: #1B8A4C;
+}
+
+.btn-action { 
+  padding: 8px 16px; 
+  border: none; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-weight: bold;
+  font-family: 'Nunito', sans-serif;
+  transition: opacity 0.2s;
+}
+
+.btn-action:hover { opacity: 0.85; }
+
+.btn-primary { background-color: #1B8A4C; color: white; }
+.btn-warning { background-color: #F5A623; color: white; }
+.btn-danger { background-color: #dc3545; color: white; }
+.btn-success { background-color: #1B8A4C; color: white; }
+
+.status-badge { 
+  padding: 6px 12px; 
+  border-radius: 20px; 
+  font-size: 12px; 
+  font-weight: 700; 
+}
+
+.status-selesai { background-color: #E8F7EE; color: #1B8A4C; }
+.status-pending { background-color: #FFF4E0; color: #B8761A; }
+
+/* =========================================
+   6. PENGATURAN KHUSUS LAYAR HP (MOBILE)
+   ========================================= */
+@media (max-width: 768px) {
+  .admin-layout {
+    flex-direction: column;
+    padding-bottom: 70px; /* Jarak untuk Bottom Navigation */
+  }
+  
+  .admin-container { 
+    padding: 20px 15px; 
+  }
+  
+  /* Sidebar berubah jadi Bottom Navigation */
+  .sidebar-container {
+    position: fixed; 
+    bottom: 0; 
+    left: 0; 
+    right: 0;
+    width: 100% !important; 
+    height: 70px;
+    flex-direction: row; 
+    justify-content: space-around; 
+    align-items: center;
+    border-right: none; 
+    border-top: 1px solid #E0EBE3; 
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.05);
+  }
+  
+  .sidebar-toggle-btn, 
+  .sidebar-logo-box, 
+  .sidebar-container h2, 
+  .sidebar-container p { 
+    display: none !important; 
+  }
+  
+  .sidebar-menu-item {
+    margin: 0; 
+    padding: 8px 12px; 
+    flex-direction: column; 
+    gap: 4px; 
+    font-size: 10px;
+  }
+  
+  .sidebar-menu-item span:first-child { 
+    margin-right: 0 !important; 
+    font-size: 22px; 
+  }
+  
+  /* Rapikan Header & Grafik */
+  .admin-header { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    gap: 15px; 
+  }
+  
+  .export-buttons { 
+    width: 100%; 
+    justify-content: flex-start; 
+  }
+  
+  .chart-grid { 
+    grid-template-columns: 1fr; 
+  }
+  
+  /* Rapikan Form Tambah Menu */
+  .form-inputs-row { 
+    flex-direction: column; 
+  }
+  
+  .admin-input { 
+    width: 100%; 
+  }
+}
+/* =========================================
+   7. ANIMASI POP-UP & ICON (SMOOTH UI)
+   ========================================= */
+
+/* Animasi untuk kotak modal agar memantul sedikit saat muncul */
+.custom-modal-box {
+  animation: modalPopUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+}
+
+@keyframes modalPopUp {
+  0% { opacity: 0; transform: translateY(30px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Animasi untuk Ikon ✅ dan ❌ agar muncul dengan efek "Pop" */
+.icon-pop {
+  display: inline-block;
+  animation: iconBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s forwards;
+  transform: scale(0); /* Mulai dari tidak terlihat */
+}
+
+@keyframes iconBounce {
+  0% { transform: scale(0); }
+  80% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Efek saat tombol diklik (agak mengecil) */
+.btn-submit:active, .btn-primary:active, .btn-cancel:active {
+  transform: scale(0.95);
+}
+
+/* Penyesuaian Tipografi */
+.text-playfair { font-family: 'Playfair Display', serif; }
+
+/* KPI Card Modern */
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+.kpi-icon-wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kpi-icon-svg { font-size: 24px; }
+
+/* Warna Helper */
+.bg-green-light { background-color: #E8F7EE; }
+.text-green { color: #1B8A4C; }
+.bg-orange-light { background-color: #FFF4E0; }
+.text-orange { color: #F5A623; }
+.bg-blue-light { background-color: #E0EFFF; }
+.text-blue { color: #3B82F6; }
+
+/* Table Modern */
+.card-header-flex {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.modern-table thead th {
+  background-color: #F8FAFB;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 12px;
+}
+
+.menu-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.rank-badge {
+  width: 24px;
+  height: 24px;
+  background: #EEF3EF;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #1B8A4C;
+}
+
+.table-row-hover:hover { background-color: #FBFDFA; }
+
+/* Legend Chart */
+.status-legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-text {
+  font-size: 12px;
+  color: #6B7A6E;
+  font-weight: 600;
+}
+
+/* Animasi */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.payment-method-badge {
+  background-color: #E8F7EE; 
+  color: #1B8A4C; 
+  padding: 4px 10px; 
+  border-radius: 6px; 
+  font-size: 11px; 
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  text-transform: uppercase;
+}
+
+.flex-center {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon-badge {
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+/* Styling Select Modern */
+.modern-select-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.modern-select {
+  appearance: none; /* Hilangkan panah asli browser */
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 40px !important;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #A3AED1;
+  font-size: 12px;
+}
+
+/* Tombol Batal yang Berubah Merah */
+.btn-cancel {
+  background-color: #F8FAFB;
+  color: #6B7A6E;
+  border: 1px solid #E0EBE3;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-cancel:hover {
+  background-color: #dc3545 !important;
+  color: white !important;
+  border-color: #dc3545 !important;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Styling Tambahan Modal */
+.payment-total-display {
+  color: #F5A623;
+  margin-bottom: 25px;
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  letter-spacing: -1px;
+}
+
+.input-highlight:focus {
+  border-color: #1B8A4C;
+  box-shadow: 0 0 0 4px rgba(27, 138, 76, 0.1);
+}
+
+.btn-full {
+  width: 100%;
+  padding: 16px !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+}
+
+.change-amount-display {
+  color: #F5A623;
+  font-size: 42px;
+  font-family: 'Playfair Display', serif;
+  margin: 0 0 35px 0;
+}
+
+.text-danger { color: #dc3545; }
+.text-success { color: #1B8A4C; }
+
+/* =========================================
+   8. FILTER MODERN & TABS (LIGHT THEME)
+   ========================================= */
+
+/* Filter Card Layout (Seperti Referensi) */
+.filter-card {
+  padding: 24px;
+}
+
+.filter-group {
+  margin-bottom: 15px;
+}
+
+.filter-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.modern-input {
+  width: 100%;
+  padding: 12px 15px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  color: #1E293B;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.modern-input:focus {
+  border-color: #3B82F6;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-apply-filter {
+  width: 100%;
+  padding: 14px;
+  background-color: #1E293B; /* Warna gelap elegan seperti di gambar */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.btn-apply-filter:hover { background-color: #0F172A; }
+
+.btn-reset-filter {
+  width: 100%;
+  padding: 12px;
+  background-color: transparent;
+  color: #64748B;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 5px;
+  transition: color 0.2s;
+}
+
+.btn-reset-filter:hover { color: #1E293B; }
+
+/* Status Tabs (Seperti Referensi Halaman Pesanan) */
+.status-tabs-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.status-tab {
+  padding: 8px 20px;
+  background-color: #F1F5F9;
+  color: #64748B;
+  border: none;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-tab:hover { background-color: #E2E8F0; }
+
+.status-tab.active {
+  background-color: #1d4ed8; /* Biru Primary */
+  color: white;
+  box-shadow: 0 4px 10px rgba(29, 78, 216, 0.3);
+}
+
+/* Dashboard Grid Layout (Menyesuaikan dengan Referensi) */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-main-grid { grid-template-columns: 1fr; }
+}
+
+/* =========================================
+   EFEK HOVER MERAH UNTUK TOMBOL BATAL/TUTUP
+   (Ditambahkan untuk meningkatkan UX)
+   ========================================= */
+
+/* Efek untuk tombol Batal di Modal */
+.btn-cancel:hover {
+  background-color: #fee2e2 !important; /* Merah sangat muda */
+  color: #dc3545 !important; /* Merah terang */
+  border-color: #f87171 !important;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Efek untuk tombol X (Tutup) di Keranjang dan Reservasi */
+.cart-close:hover, 
+.res-close:hover,
+.modal-icon-header svg:hover {
+  color: #dc3545 !important; /* Berubah jadi merah */
+  transform: scale(1.1); /* Sedikit membesar */
+  transition: all 0.2s ease-in-out;
+}
+
+/* Style Tambahan untuk Manajemen Menu */
+.image-preview-mini {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.image-preview-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.menu-image-container {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.category-badge {
+  background-color: #E0F2FE;
+  color: #0369A1;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Memperbaiki hover tombol batal */
+.btn-cancel:hover {
+  background-color: #F1F5F9 !important;
+  color: #EF4444 !important;
+}
+
+/* Container Preview Gambar di Form */
+.image-preview-box {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  background-color: #F1F5F9;
+  border: 2px dashed #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.image-preview-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Tombol Pilih File Custom */
+.custom-file-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  transition: all 0.2s;
+}
+
+.custom-file-upload:hover {
+  background-color: #E2E8F0;
+  border-color: #94A3B8;
+}
+
+.custom-file-upload input[type="file"] {
+  display: none; /* Sembunyikan input file asli browser */
+}
+
+/* Hover tombol cancel/batal */
+.btn-cancel:hover {
+  background-color: #fee2e2 !important;
+  color: #dc3545 !important;
+  border-color: #f87171 !important;
+}
+
+/* Notifikasi Melayang Modern */
+.status-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-weight: 700;
+  z-index: 9999;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  animation: slideIn 0.3s ease-out;
+}
+
+.status-toast.success { background-color: #1B8A4C; }
+.status-toast.error { background-color: #EF4444; }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Hover tombol batal agar merah (Global UI Improvement) */
+.btn-cancel:hover {
+  background-color: #fee2e2 !important;
+  color: #dc3545 !important;
+  border-color: #f87171 !important;
+  transition: all 0.2s ease;
+}
+
+/* =========================================
+   STYLE KHUSUS HALAMAN LOGIN ADMIN
+   ========================================= */
+
+/* Background layar penuh yang menenangkan */
+.login-page-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #F1F5F9;
+  padding: 20px;
+}
+
+/* Kartu form login melayang dengan bayangan halus */
+.login-card-modern {
+  background-color: #FFFFFF;
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+}
+
+/* Header Logo */
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-logo-circle {
+  width: 70px;
+  height: 70px;
+  background-color: #E0F2FE;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 4px 10px rgba(27, 138, 76, 0.15);
+}
+
+/* Input dengan Ikon di dalamnya */
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 15px;
+  color: #94A3B8;
+}
+
+/* Memberikan jarak padding ke kiri agar teks tidak menabrak ikon */
+.modern-input.pl-40 {
+  padding-left: 40px;
+}
+
+/* Kotak Pesan Error Merah */
+.login-error-message {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #fee2e2;
+  color: #dc3545;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* =========================================
+   ANIMASI LOADING PREMIUM (SPLASH SCREEN)
+   ========================================= */
+
+.premium-loader-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #F8FAFC; /* Warna latar elegan */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Pastikan selalu berada di paling depan */
+}
+
+/* Wadah untuk menumpuk logo dan lingkaran spinner */
+.premium-loader-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Lingkaran Spinner bergaya Google */
+.spinner-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 4px solid transparent;
+  border-top-color: #1B8A4C; /* Warna Hijau Semesta */
+  border-left-color: #1B8A4C;
+  border-radius: 50%;
+  /* cubic-bezier memberikan efek putaran yang tidak kaku (cepat-lambat-cepat) */
+  animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite; 
+}
+
+/* Logo di tengah lingkaran */
+.loader-logo {
+  width: 50px;
+  object-fit: contain;
+  /* Efek logo berdetak seperti jantung */
+  animation: pulse 2s ease-in-out infinite; 
+}
+
+/* Teks Loading */
+.loader-text {
+  margin-top: 20px;
+  color: #64748B;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  animation: fadeInOut 1.5s infinite; /* Efek teks meredup-terang */
+}
+
+/* Kumpulan Keyframes (Rumus Animasi) */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}

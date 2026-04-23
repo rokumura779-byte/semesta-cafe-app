@@ -11,16 +11,16 @@ export default function Hero({ onOpenMenu, onOpenRes }) {
       </div>
 
       <div className="hero-content">
-        <span className="hero-eyebrow">Selamat Datang di</span>
-        <h1 className="hero-title">
+        <span className="hero-eyebrow fade-in-up">Selamat Datang di</span>
+        <h1 className="hero-title fade-in-up delay-1">
           Semesta<br />
           <span className="hero-title-italic">coffee.</span>
         </h1>
-        <p className="hero-desc">
+        <p className="hero-desc fade-in-up delay-2">
           Nikmati cita rasa kopi pilihan, makanan lezat, dan suasana nyaman di tengah kampus.
           Free delivery area UMP Kampus 1.
         </p>
-        <div className="hero-actions">
+        <div className="hero-actions fade-in-up delay-3">
           <a href="#menu" className="hero-btn-primary" onClick={onOpenMenu}>
             Lihat Menu
           </a>
@@ -28,7 +28,8 @@ export default function Hero({ onOpenMenu, onOpenRes }) {
             Reservasi Meja
           </button>
         </div>
-        <div className="hero-stats">
+        
+        <div className="hero-stats fade-in-up delay-3">
           <div className="hero-stat">
             <span className="stat-num">50+</span>
             <span className="stat-label">Menu Pilihan</span>
