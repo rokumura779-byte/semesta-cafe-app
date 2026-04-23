@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+// Import library untuk membuat grafik interaktif (Pie Chart)
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+// Import library untuk fitur export laporan
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import html2pdf from 'html2pdf.js';
 
-// IMPORT IKON REACT MODERN
+// Import ikon modern untuk antarmuka pengguna
 import { 
   FaFilePdf, 
   FaFileExcel, 
@@ -19,16 +21,21 @@ import {
 import './Admin.css';
 
 function AdminDashboard() {
+  // --- 1. STATE MANAGEMENT ---
+  // Menyimpan seluruh data agregasi (ringkasan) dari database
   const [dashboardData, setDashboardData] = useState({
     summary: { total_pesanan: 0, total_omzet: 0, total_produk: 0 },
     statusDistribution: [],
     topMenus: []
   });
 
+  // Referensi khusus yang digunakan oleh html2pdf untuk 'memotret' area tertentu menjadi PDF
   const reportRef = useRef();
 
+  // --- 2. LOGIKA PENGAMBILAN DATA (API CALL) ---
   const fetchDashboardData = async () => {
     try {
+      // Mengambil data ringkasan bisnis dari backend API
       const response = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/dashboard/summary');
       setDashboardData(response.data);
     } catch (error) {
@@ -36,61 +43,84 @@ function AdminDashboard() {
     }
   };
 
+  // --- 3. LOGIKA AUTO-REFRESH (REAL-TIME POLLING) ---
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(); // Tarik data saat pertama kali dashboard dibuka
+
+    // Membuat siklus penarikan data otomatis setiap 5 detik (5000 ms).
+    // Ini membuat dashboard seolah-olah real-time tanpa perlu me-refresh seluruh halaman.
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 5000);
+
+    // Fungsi pembersihan: Hentikan siklus jika admin pindah ke halaman lain (misal: halaman Menu)
+    return () => clearInterval(interval);
   }, []);
 
+  // --- 4. UTILITAS TAMPILAN ---
+  // Palet warna khusus untuk grafik Pie Chart (Hijau, Oranye, Merah, Biru)
   const COLORS = ['#1B8A4C', '#F5A623', '#EF4444', '#3B82F6'];
+  
+  // Fungsi untuk memformat angka biasa menjadi format mata uang Rupiah
   const formatRupiah = (angka) => "Rp " + parseInt(angka).toLocaleString('id-ID');
 
-  // ==========================================
-  // FUNGSI EXPORT (Excel & PDF tetap sama logikanya)
-  // ==========================================
+  // --- 5. LOGIKA EKSPOR LAPORAN (EXCEL & PDF) ---
+  
+  // A. Ekspor ke Excel (.xlsx) menggunakan ExcelJS
   const exportExcel = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Laporan Penjualan');
+    
+    // Pembuatan Header Judul di dalam file Excel
     worksheet.mergeCells('A1:E1');
     const titleCell = worksheet.getCell('A1');
     titleCell.value = 'SEMESTA CAFE OFFICIAL STORE';
     titleCell.font = { size: 16, bold: true, color: { argb: 'FF1B8A4C' } }; 
-    worksheet.getCell('A2').value = 'Laporan Analisis Penjualan Menu Premium';
+    worksheet.getCell('A2').value = 'Laporan Analisis Penjualan Menu Terlaris';
     worksheet.getCell('A3').value = `Dicetak pada: ${new Date().toLocaleString('id-ID')}`;
     worksheet.addRow([]); 
 
-    const headerRow = worksheet.addRow(['NO', 'IDENTITAS PRODUK', 'KATEGORI', 'UNIT TERJUAL', 'KONTRIBUSI OMZET']);
+    // Pembuatan Baris Kolom (Tabel)
+    const headerRow = worksheet.addRow(['NO', 'IDENTITAS PRODUK', 'KATEGORI', 'UNIT TERJUAL', 'ESTIMASI OMZET']);
     headerRow.eachCell((cell) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B8A4C' } }; 
       cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
     });
 
+    // Mengisi data dari state topMenus ke dalam baris-baris Excel
     dashboardData.topMenus.forEach((menu, index) => {
-      worksheet.addRow([index + 1, menu.name, 'F&B', menu.terjual, formatRupiah(menu.terjual * 15000)]);
+      // Catatan: Asumsi harga rata-rata 15.000 untuk perhitungan estimasi
+      worksheet.addRow([index + 1, menu.name, 'Food & Beverage', menu.terjual, formatRupiah(menu.terjual * 15000)]);
     });
 
+    // Proses konversi file dan pengunduhan
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `Laporan_Semesta_${new Date().getTime()}.xlsx`);
   };
 
+  // B. Ekspor ke PDF menggunakan html2pdf
   const exportPDF = () => {
-    const element = reportRef.current;
+    const element = reportRef.current; // Mengambil elemen HTML yang disembunyikan
     const opt = {
       margin: 10,
       filename: `Laporan_Semesta_${new Date().getTime()}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2 }, // Mengatur ketajaman gambar PDF
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
+    // Mengubah elemen HTML menjadi PDF lalu mengunduhnya
     html2pdf().set(opt).from(element).save();
   };
 
+  // --- 6. RENDER TAMPILAN DASHBOARD ---
   return (
     <div className="admin-container">
       
-      {/* HEADER & TOMBOL EXPORT */}
+      {/* BAGIAN 1: HEADER & TOMBOL EXPORT */}
       <div className="admin-header animate-fade-in">
         <div>
           <h1 className="admin-title text-playfair">Ruang Kendali Semesta</h1>
-          <p className="admin-subtitle">Pantau performa bisnis Anda secara real-time.</p>
+          <p className="admin-subtitle">Pantau performa bisnis dan analisis penjualan secara real-time.</p>
         </div>
         <div className="export-buttons">
           <button className="btn-export btn-pdf" onClick={exportPDF}>
@@ -102,54 +132,59 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* KARTU RINGKASAN (KPI) */}
+      {/* BAGIAN 2: INDIKATOR KINERJA UTAMA (KPI CARDS) */}
       <div className="kpi-grid">
+        
+        {/* Kartu Omzet */}
         <div className="admin-card kpi-card">
           <div className="kpi-icon-wrapper bg-green-light">
             <FaMoneyBillWave className="kpi-icon-svg text-green" />
           </div>
           <div>
-            <p className="kpi-label">OMZET TOTAL</p>
+            <p className="kpi-label">TOTAL PENDAPATAN</p>
             <h2 className="kpi-value">{formatRupiah(dashboardData.summary.total_omzet)}</h2>
           </div>
         </div>
 
+        {/* Kartu Total Produk Aktif */}
         <div className="admin-card kpi-card">
           <div className="kpi-icon-wrapper bg-orange-light">
             <FaBoxOpen className="kpi-icon-svg text-orange" />
           </div>
           <div>
-            <p className="kpi-label">TOTAL PRODUK</p>
-            <h2 className="kpi-value">{dashboardData.summary.total_produk}</h2>
+            <p className="kpi-label">KATALOG PRODUK</p>
+            <h2 className="kpi-value">{dashboardData.summary.total_produk} Item</h2>
           </div>
         </div>
 
+        {/* Kartu Jumlah Transaksi Berhasil */}
         <div className="admin-card kpi-card">
           <div className="kpi-icon-wrapper bg-blue-light">
             <FaCheckCircle className="kpi-icon-svg text-blue" />
           </div>
           <div>
-            <p className="kpi-label">PESANAN SELESAI</p>
-            <h2 className="kpi-value">{dashboardData.summary.total_pesanan}</h2>
+            <p className="kpi-label">TRANSAKSI SUKSES</p>
+            <h2 className="kpi-value">{dashboardData.summary.total_pesanan} Nota</h2>
           </div>
         </div>
+
       </div>
 
-      {/* GRAFIK & TOP MENU */}
+      {/* BAGIAN 3: ANALISIS DATA (GRAFIK & TABEL) */}
       <div className="chart-grid">
         
-        {/* TABEL TOP MENU */}
+        {/* Kolom Kiri: Tabel Top 5 Menu Paling Laku */}
         <div className="admin-card table-card">
           <div className="card-header-flex">
-            <FaTrophy className="text-orange" />
-            <h3 className="admin-card-title">Top 5 Menu Terlaris</h3>
+            <FaTrophy className="text-orange" size={20} />
+            <h3 className="admin-card-title">Produk Paling Diminati (Top 5)</h3>
           </div>
           <div className="table-responsive">
             <table className="admin-table modern-table">
               <thead>
                 <tr>
-                  <th>Produk</th>
-                  <th style={{ textAlign: 'right' }}>Penjualan</th>
+                  <th>Nama Produk</th>
+                  <th style={{ textAlign: 'right' }}>Total Penjualan</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,17 +192,20 @@ function AdminDashboard() {
                   <tr key={index} className="table-row-hover">
                     <td>
                       <div className="menu-name-cell">
+                        {/* Menampilkan lencana peringkat (1, 2, 3...) */}
                         <span className="rank-badge">{index + 1}</span>
-                        {menu.name}
+                        <span style={{ fontWeight: '700', color: '#1E293B' }}>{menu.name}</span>
                       </div>
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: '700', color: '#1B8A4C' }}>
-                      {menu.terjual} <span className="unit-label">Porsi</span>
+                    <td style={{ textAlign: 'right', fontWeight: '800', color: '#1B8A4C' }}>
+                      {menu.terjual} <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '600' }}>Porsi</span>
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="2" className="text-center py-4">Data belum tersedia</td>
+                    <td colSpan="2" style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>
+                      Data transaksi belum tersedia.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -175,12 +213,14 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* CHART PESANAN */}
+        {/* Kolom Kanan: Grafik Pie Status Pesanan */}
         <div className="admin-card chart-card-inner">
           <div className="card-header-flex">
-            <FaChartPie className="text-blue" />
-            <h3 className="admin-card-title">Proporsi Status</h3>
+            <FaChartPie className="text-blue" size={20} />
+            <h3 className="admin-card-title">Distribusi Status Pesanan</h3>
           </div>
+          
+          {/* Pembungkus Grafik Recharts agar responsif terhadap ukuran layar */}
           <div style={{ width: '100%', height: '240px' }}>
             <ResponsiveContainer>
               <PieChart>
@@ -191,18 +231,21 @@ function AdminDashboard() {
                   paddingAngle={8} 
                   dataKey="value"
                   animationBegin={0}
-                  animationDuration={1500}
+                  animationDuration={1500} // Durasi animasi saat halaman dibuka
                 >
                   {dashboardData.statusDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                   ))}
                 </Pie>
+                {/* Menampilkan kotak info kecil saat kursor diarahkan ke grafik */}
                 <Tooltip 
-                  contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
+          
+          {/* Keterangan Warna Grafik (Legend) */}
           <div className="status-legend-grid">
               {dashboardData.statusDistribution.map((entry, index) => (
                 <div key={index} className="legend-item">
@@ -215,10 +258,54 @@ function AdminDashboard() {
 
       </div>
 
-      {/* TEMPLATE LAPORAN PDF (Disembunyikan) */}
+      {/* ========================================================
+          TEMPLATE RAHASIA UNTUK CETAK LAPORAN PDF 
+          (Bagian ini tidak terlihat di layar aplikasi, hanya dipanggil oleh fungsi html2pdf)
+          ======================================================== */}
       <div style={{ display: 'none' }}>
-        <div ref={reportRef} className="pdf-template">
-          {/* ... Template PDF tetap sama atau sesuaikan style-nya ... */}
+        <div ref={reportRef} style={{ padding: '40px', backgroundColor: 'white', color: 'black', fontFamily: 'sans-serif' }}>
+          
+          <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '3px solid #1B8A4C', paddingBottom: '20px' }}>
+            <h1 style={{ color: '#1B8A4C', fontSize: '28px', marginBottom: '10px' }}>SEMESTA CAFE</h1>
+            <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>Laporan Analisis Kinerja Bisnis</p>
+            <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#999' }}>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '40px' }}>
+            <div style={{ flex: 1, padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', borderLeft: '4px solid #1B8A4C' }}>
+              <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666', textTransform: 'uppercase' }}>Total Pendapatan Bersih</p>
+              <h2 style={{ margin: 0, fontSize: '24px', color: '#2c3e50' }}>{formatRupiah(dashboardData.summary.total_omzet)}</h2>
+            </div>
+            <div style={{ flex: 1, padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', borderLeft: '4px solid #F5A623' }}>
+              <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666', textTransform: 'uppercase' }}>Total Transaksi Selesai</p>
+              <h2 style={{ margin: 0, fontSize: '24px', color: '#2c3e50' }}>{dashboardData.summary.total_pesanan} Nota</h2>
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: '18px', color: '#2c3e50', marginBottom: '15px' }}>Daftar Produk Paling Diminati (Top 5)</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#1B8A4C', color: 'white' }}>
+                <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', border: '1px solid #1B8A4C' }}>Peringkat</th>
+                <th style={{ padding: '12px', textAlign: 'left', fontSize: '14px', border: '1px solid #1B8A4C' }}>Nama Produk</th>
+                <th style={{ padding: '12px', textAlign: 'right', fontSize: '14px', border: '1px solid #1B8A4C' }}>Total Penjualan (Porsi)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dashboardData.topMenus.map((menu, index) => (
+                <tr key={index}>
+                  <td style={{ padding: '12px', border: '1px solid #dee2e6', fontSize: '14px' }}>#{index + 1}</td>
+                  <td style={{ padding: '12px', border: '1px solid #dee2e6', fontSize: '14px', fontWeight: 'bold' }}>{menu.name}</td>
+                  <td style={{ padding: '12px', border: '1px solid #dee2e6', fontSize: '14px', textAlign: 'right' }}>{menu.terjual}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          <div style={{ marginTop: '50px', textAlign: 'center', fontSize: '12px', color: '#999' }}>
+            <p>Laporan ini dihasilkan secara otomatis oleh Sistem Informasi Semesta Cafe.</p>
+          </div>
+
         </div>
       </div>
 
@@ -227,4 +314,3 @@ function AdminDashboard() {
 }
 
 export default AdminDashboard;
-

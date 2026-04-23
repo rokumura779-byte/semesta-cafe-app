@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FaTimes, FaLock, FaMugHot, FaChair, FaInfoCircle } from "react-icons/fa";
+import { FaTimes, FaLock, FaMugHot, FaChair, FaInfoCircle, FaRegCalendarCheck } from "react-icons/fa";
 import "../styles/reservation.css";
 
 const TIMES = [
@@ -19,7 +19,6 @@ export default function Reservation({ onClose, onToast }) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split("T")[0];
 
-  // Mengambil data reservasi asli dari Backend saat Pop-up dibuka
   useEffect(() => {
     const fetchReservations = async () => {
       try {
@@ -32,21 +31,16 @@ export default function Reservation({ onClose, onToast }) {
     fetchReservations();
   }, []);
 
-  // LOGIKA MEJA TERKUNCI OTOMATIS
-  // Meja dikunci jika ada pesanan di TANGGAL dan JAM yang sama, dan statusnya belum Dibatalkan
   const getLockedTables = () => {
-    if (!form.date || !form.time) return []; // Jangan kunci meja jika user belum pilih tanggal/jam
-    
+    if (!form.date || !form.time) return []; 
     return dbReservations
       .filter(res => {
-        // Cek apakah tanggal, jam awal, dan status cocok
         const isSameDate = res.reservation_date.startsWith(form.date);
         const isSameTime = res.reservation_time.startsWith(form.time);
         const isActive = res.status !== 'Dibatalkan';
         return isSameDate && isSameTime && isActive;
       })
       .map(res => {
-        // Ekstrak angka dari string (Misal: "Meja 12" -> 12)
         const match = res.table_number.match(/\d+/);
         return match ? parseInt(match[0]) : null;
       })
@@ -58,8 +52,6 @@ export default function Reservation({ onClose, onToast }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    
-    // Jika user ganti tanggal/jam dan meja yang dipilih ternyata terkunci, batalkan pilihan
     if (name === 'date' || name === 'time') {
       setSelTable(null); 
     }
@@ -74,8 +66,6 @@ export default function Reservation({ onClose, onToast }) {
 
     try {
       const guestsInt = parseInt(form.guests);
-      
-      // Kirim Data dengan table_number yang asli
       await axios.post('https://semesta-cafe-app-production.up.railway.app/api/reservations', {
         customer_name: form.name,
         phone: form.phone,
@@ -83,13 +73,13 @@ export default function Reservation({ onClose, onToast }) {
         reservation_time: form.time,
         guests: guestsInt,
         notes: form.note || '-',
-        table_number: `Meja ${selTable}` // Dikirim langsung sebagai Meja X
+        table_number: `Meja ${selTable}`
       });
 
       setForm({ name: "", phone: "", date: "", time: "", guests: "", note: "" });
       setSelTable(null);
       onClose();
-      onToast("Reservasi terkirim! Menunggu konfirmasi Admin.");
+      onToast("Reservasi berhasil dikirim! Menunggu konfirmasi Admin.");
     } catch (error) {
       onToast("Gagal mengirim reservasi. Silakan coba lagi.");
     } finally {
@@ -97,107 +87,137 @@ export default function Reservation({ onClose, onToast }) {
     }
   };
 
-  const tableCapacity = (n) => (n <= 5 ? "2 org" : n <= 10 ? "4 org" : "6 org");
+  const tableCapacity = (n) => (n <= 5 ? "2 Orang" : n <= 10 ? "4 Orang" : "6 Orang");
 
   return (
-    <div className="res-overlay" onClick={onClose}>
-      <div className="res-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="res-header">
-          <span className="res-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FaChair color="#1B8A4C" /> Reservasi Meja
-          </span>
-          <button className="res-close" onClick={onClose} aria-label="Tutup" disabled={isSubmitting}><FaTimes /></button>
+    // Prefix "rs-" menjamin isolasi CSS
+    <div className="rs-overlay" onClick={onClose}>
+      
+      <div className="rs-modal" onClick={(e) => e.stopPropagation()}>
+        
+        {/* HEADER MODAL */}
+        <div className="rs-header">
+          <h2 className="rs-title">
+            <FaChair className="rs-title-icon" /> Reservasi Tempat
+          </h2>
+          <button className="rs-close-btn" onClick={onClose} aria-label="Tutup" disabled={isSubmitting}>
+            <FaTimes />
+          </button>
         </div>
 
-        <div className="res-body">
-          {/* PERINGATAN H-1 */}
-          <div style={{ backgroundColor: '#FFF4E0', color: '#B8761A', padding: '10px 15px', borderRadius: '8px', fontSize: '12px', marginBottom: '15px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <FaInfoCircle size={16} />
-            <span>Pemesanan dilakukan maksimal <strong>H-1</strong>. Harap konfirmasi ulang kehadiran pada hari H kepada kasir.</span>
+        {/* BODY MODAL */}
+        <div className="rs-body">
+          
+          {/* INFO BANNER H-1 */}
+          <div className="rs-info-banner">
+            <FaInfoCircle className="rs-info-icon" />
+            <p>Pemesanan meja dilakukan maksimal <strong>H-1</strong>. Harap konfirmasi kehadiran pada hari H ke kasir.</p>
           </div>
 
-          <div className="res-form" style={{ marginBottom: '15px' }}>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Tanggal Kedatangan</label>
-                <input name="date" type="date" min={minDate} value={form.date} onChange={handleChange} disabled={isSubmitting} />
-              </div>
-              <div className="form-group">
-                <label>Pilih Waktu</label>
-                <select name="time" value={form.time} onChange={handleChange} disabled={isSubmitting}>
-                  <option value="">Pilih jam</option>
-                  {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+          {/* FORM WAKTU & TANGGAL */}
+          <div className="rs-section-title">1. Kapan Anda Ingin Datang?</div>
+          <div className="rs-form-grid">
+            <div className="rs-input-group">
+              <label>Tanggal Kedatangan</label>
+              <input name="date" type="date" min={minDate} value={form.date} onChange={handleChange} disabled={isSubmitting} />
+            </div>
+            <div className="rs-input-group">
+              <label>Pilih Waktu (WIB)</label>
+              <select name="time" value={form.time} onChange={handleChange} disabled={isSubmitting}>
+                <option value="">-- Pilih Jam --</option>
+                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
           </div>
 
-          <p className="res-table-label">
-            {!form.date || !form.time ? "⚠️ Pilih Tanggal & Waktu untuk melihat meja yang tersedia" : "Pilih meja yang tersedia:"}
-          </p>
-
-          <div className="res-legend">
-            <div className="legend-item"><div className="legend-dot available" />Tersedia</div>
-            <div className="legend-item"><div className="legend-dot selected" />Dipilih</div>
-            <div className="legend-item"><div className="legend-dot reserved" />Terpesan</div>
+          {/* DENAH MEJA INTERAKTIF */}
+          <div className="rs-section-title" style={{ marginTop: '20px' }}>
+            2. Pilih Meja Favorit Anda
           </div>
+          
+          {!form.date || !form.time ? (
+             <div className="rs-table-warning">
+               Silakan pilih Tanggal dan Waktu terlebih dahulu untuk melihat ketersediaan meja.
+             </div>
+          ) : (
+            <>
+              <div className="rs-legend">
+                <div className="rs-legend-item"><span className="rs-dot available"></span> Tersedia</div>
+                <div className="rs-legend-item"><span className="rs-dot selected"></span> Pilihanmu</div>
+                <div className="rs-legend-item"><span className="rs-dot locked"></span> Terisi</div>
+              </div>
 
-          <div className="res-table-grid" style={{ opacity: (!form.date || !form.time) ? 0.5 : 1, pointerEvents: (!form.date || !form.time) ? 'none' : 'auto' }}>
-            {Array.from({ length: 15 }, (_, i) => {
-              const n = i + 1;
-              const isRsv = reserved.includes(n);
-              const isSel = selTable === n;
-              return (
-                <button
-                  key={n}
-                  className={`table-box${isRsv ? " reserved" : isSel ? " selected" : " available"}`}
-                  onClick={() => !isRsv && setSelTable(n)}
-                  disabled={isRsv || isSubmitting}
-                >
-                  <span className="table-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {isRsv ? <FaLock size={12} color="#a3aed1" /> : <FaMugHot size={14} color={isSel ? "#fff" : "#1B8A4C"} />}
-                  </span>
-                  <span className="table-num">{n}</span>
-                </button>
-              );
-            })}
-          </div>
+              <div className="rs-table-layout">
+                {Array.from({ length: 15 }, (_, i) => {
+                  const n = i + 1;
+                  const isLocked = reserved.includes(n);
+                  const isSelected = selTable === n;
+                  
+                  let boxClass = "rs-table-box ";
+                  if (isLocked) boxClass += "locked";
+                  else if (isSelected) boxClass += "selected";
+                  else boxClass += "available";
 
-          {selTable && (
-            <div className="res-selected-info" style={{ marginTop: '10px', marginBottom: '15px' }}>
-              Meja {selTable} dipilih ✓ — Kapasitas: {tableCapacity(selTable)}
-            </div>
+                  return (
+                    <button
+                      key={n}
+                      className={boxClass}
+                      onClick={() => !isLocked && setSelTable(n)}
+                      disabled={isLocked || isSubmitting}
+                      title={`Kapasitas: ${tableCapacity(n)}`}
+                    >
+                      <div className="rs-table-icon-wrap">
+                        {isLocked ? <FaLock size={14} /> : <FaMugHot size={16} />}
+                      </div>
+                      <span className="rs-table-num">Meja {n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selTable && (
+                <div className="rs-selected-alert animate-pop">
+                  <strong>Meja {selTable} Terpilih</strong> — Kapasitas maksimal {tableCapacity(selTable)}
+                </div>
+              )}
+            </>
           )}
 
-          <div className="res-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label>Nama Lengkap</label>
-                <input name="name" type="text" placeholder="Masukkan nama" value={form.name} onChange={handleChange} disabled={isSubmitting} />
-              </div>
-              <div className="form-group">
-                <label>No. WhatsApp</label>
-                <input name="phone" type="tel" placeholder="08xxxxxxxxxx" value={form.phone} onChange={handleChange} disabled={isSubmitting} />
-              </div>
+          {/* DATA DIRI PELANGGAN */}
+          <div className="rs-section-title" style={{ marginTop: '20px' }}>3. Lengkapi Data Diri</div>
+          <div className="rs-form-grid">
+            <div className="rs-input-group">
+              <label>Nama Lengkap</label>
+              <input name="name" type="text" placeholder="Masukkan nama Anda" value={form.name} onChange={handleChange} disabled={isSubmitting} />
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Jumlah Tamu</label>
-                <select name="guests" value={form.guests} onChange={handleChange} disabled={isSubmitting}>
-                  <option value="">Pilih jumlah</option>
-                  {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n} orang</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Catatan (Opsional)</label>
-                <input name="note" type="text" placeholder="Contoh: Bawa bayi" value={form.note} onChange={handleChange} disabled={isSubmitting} />
-              </div>
+            <div className="rs-input-group">
+              <label>No. WhatsApp</label>
+              <input name="phone" type="tel" placeholder="08xxxxxxxxxx" value={form.phone} onChange={handleChange} disabled={isSubmitting} />
+            </div>
+            <div className="rs-input-group">
+              <label>Jumlah Tamu</label>
+              <select name="guests" value={form.guests} onChange={handleChange} disabled={isSubmitting}>
+                <option value="">-- Pilih --</option>
+                {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n} Orang</option>)}
+              </select>
+            </div>
+            <div className="rs-input-group">
+              <label>Catatan Tambahan</label>
+              <input name="note" type="text" placeholder="Cth: Area no smoking / Bawa bayi" value={form.note} onChange={handleChange} disabled={isSubmitting} />
             </div>
           </div>
 
-          <button className="res-submit-btn" onClick={submit} disabled={isSubmitting} style={{ opacity: isSubmitting ? 0.7 : 1 }}>
-            {isSubmitting ? "Memproses..." : "Konfirmasi Reservasi"}
+          {/* TOMBOL SUBMIT */}
+          <button className="rs-submit-btn" onClick={submit} disabled={isSubmitting}>
+            {isSubmitting ? (
+              "Memproses Reservasi..."
+            ) : (
+              <>
+                <FaRegCalendarCheck size={16} /> Ajukan Reservasi
+              </>
+            )}
           </button>
+
         </div>
       </div>
     </div>

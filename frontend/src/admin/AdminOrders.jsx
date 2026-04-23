@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+// Import sekumpulan ikon untuk antarmuka yang intuitif
 import { 
   FaCheckCircle, FaTimesCircle, FaWallet, FaHistory, 
   FaCheck, FaUser, FaReceipt, FaCalendarAlt, FaFilter,
@@ -8,36 +9,48 @@ import {
 import './Admin.css';
 
 export default function AdminOrders() {
-  const [orders, setOrders] = useState([]);
-  const [menus, setMenus] = useState([]); 
+  // ==========================================
+  // 1. STATE MANAGEMENT UTAMA
+  // ==========================================
+  const [orders, setOrders] = useState([]); // Menyimpan daftar seluruh transaksi
+  const [menus, setMenus] = useState([]); // Menyimpan daftar menu aktif untuk kasir manual
   
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [uangBayar, setUangBayar] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [paymentResult, setPaymentResult] = useState(null);
-
-  const [manualOrderModalOpen, setManualOrderModalOpen] = useState(false);
-  const [manualCustomer, setManualCustomer] = useState('');
-  const [manualOrderType, setManualOrderType] = useState('Dine-in');
-  const [manualTable, setManualTable] = useState('');
-  const [manualCart, setManualCart] = useState([]); 
-  const [selectedMenu, setSelectedMenu] = useState(''); 
-  const [selectedQty, setSelectedQty] = useState(1);
-  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
-
+  // State untuk Filter Data di Tabel
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activeTab, setActiveTab] = useState('Semua');
 
   // ==========================================
-  // FETCH DATA DARI BACKEND DENGAN AUTO-REFRESH (POLLING)
+  // 2. STATE UNTUK MODAL PEMBAYARAN
+  // ==========================================
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null); // Data pesanan yang mau dibayar
+  const [uangBayar, setUangBayar] = useState(''); // Input nominal uang dari kasir
+  const [paymentMethod, setPaymentMethod] = useState('Cash'); // Metode bayar (Cash/QRIS)
+  const [paymentResult, setPaymentResult] = useState(null); // Menampung hasil sukses/gagal dari database
+
+  // ==========================================
+  // 3. STATE UNTUK MODAL KASIR OFFLINE (POS MANUAL)
+  // ==========================================
+  const [manualOrderModalOpen, setManualOrderModalOpen] = useState(false);
+  const [manualCustomer, setManualCustomer] = useState('');
+  const [manualOrderType, setManualOrderType] = useState('Dine-in');
+  const [manualTable, setManualTable] = useState('');
+  const [manualCart, setManualCart] = useState([]); // Keranjang belanja kasir
+  const [selectedMenu, setSelectedMenu] = useState(''); // Menu yang dipilih dari dropdown
+  const [selectedQty, setSelectedQty] = useState(1);
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
+  // ==========================================
+  // 4. SINKRONISASI DATA (REAL-TIME POLLING)
   // ==========================================
   const fetchData = async () => {
     try {
+      // Menarik data transaksi terbaru
       const resOrders = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/orders');
       setOrders(resOrders.data);
       
+      // Menarik data menu (hanya yang is_available = 1) untuk kebutuhan dropdown kasir manual
       const resMenus = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/menus');
       setMenus(resMenus.data.filter(m => m.is_available === 1));
     } catch (error) { 
@@ -46,23 +59,30 @@ export default function AdminOrders() {
   };
 
   useEffect(() => { 
-    fetchData(); // Tarikan pertama saat halaman dibuka
+    fetchData(); // Eksekusi pertama saat halaman dirender
 
-    // Fitur Auto-Refresh: Tarik data setiap 5 detik (5000 ms)
+    // Auto-Refresh: Menarik data secara diam-diam setiap 5 detik (tanpa reload halaman)
     const interval = setInterval(() => {
       fetchData();
     }, 5000);
 
+    // Mencegah kebocoran memori dengan menghapus siklus jika admin pindah menu
     return () => clearInterval(interval);
   }, []);
 
+  // --- Fungsi Format ---
   const formatRupiah = (angka) => "Rp " + parseInt(angka).toLocaleString('id-ID');
+  
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
     return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  // ==========================================
+  // 5. LOGIKA PROSES PEMBAYARAN
+  // ==========================================
+  // Membuka pop-up form pembayaran
   const openPaymentModal = (order) => {
     setSelectedOrder(order);
     setPaymentMethod('Cash');
@@ -70,7 +90,9 @@ export default function AdminOrders() {
     setModalOpen(true);
   };
 
+  // Mengeksekusi pembayaran ke database
   const handleProsesBayar = async () => {
+    // Validasi input kasir
     if (!uangBayar) return setPaymentResult({ error: "Masukkan nominal uang!" });
     if (parseInt(uangBayar) < parseFloat(selectedOrder.total_amount)) return setPaymentResult({ error: "Uang kurang dari tagihan!" });
 
@@ -78,28 +100,36 @@ export default function AdminOrders() {
       const response = await axios.post(`https://semesta-cafe-app-production.up.railway.app/api/orders/${selectedOrder.id}/pay`, { 
         uang_bayar: parseInt(uangBayar), payment_method: paymentMethod 
       });
-      setModalOpen(false);
+      setModalOpen(false); // Tutup form input
+      // Tampilkan struk kembalian yang dihitung oleh MySQL Stored Procedure
       setPaymentResult({ success: true, change: response.data.data.change_amount });
-      fetchData(); 
+      fetchData(); // Refresh data tabel
     } catch (error) { 
       setPaymentResult({ error: `Gagal: ${error.response?.data?.error || 'Kesalahan Server'}` });
     }
   };
 
+  // ==========================================
+  // 6. LOGIKA KASIR OFFLINE (POINT OF SALE)
+  // ==========================================
+  // Memasukkan item ke keranjang mini di layar kasir
   const handleAddToCartManual = () => {
     if (!selectedMenu) return;
     
+    // Cari detail menu (nama, harga) berdasarkan ID yang dipilih
     const menuDetails = menus.find(m => m.id === parseInt(selectedMenu));
     if (!menuDetails) return;
 
     const existingItemIndex = manualCart.findIndex(item => item.menu_id === menuDetails.id);
     
     if (existingItemIndex >= 0) {
+      // Jika item sudah ada di keranjang, cukup tambah jumlahnya
       const updatedCart = [...manualCart];
       updatedCart[existingItemIndex].quantity += selectedQty;
       updatedCart[existingItemIndex].subtotal = updatedCart[existingItemIndex].quantity * menuDetails.price;
       setManualCart(updatedCart);
     } else {
+      // Jika belum ada, buat entri item baru di keranjang
       setManualCart([...manualCart, {
         menu_id: menuDetails.id,
         name: menuDetails.name,
@@ -109,16 +139,19 @@ export default function AdminOrders() {
       }]);
     }
     
+    // Reset form pilihan menu agar kasir bisa cepat memilih menu berikutnya
     setSelectedMenu('');
     setSelectedQty(1);
   };
 
+  // Menghapus item dari keranjang kasir
   const handleRemoveFromCartManual = (index) => {
     const updatedCart = [...manualCart];
     updatedCart.splice(index, 1);
     setManualCart(updatedCart);
   };
 
+  // Mengirim pesanan manual ke sistem
   const submitManualOrder = async () => {
     if (!manualCustomer.trim()) return alert("Nama pelanggan harus diisi!");
     if (manualOrderType === 'Dine-in' && !manualTable.trim()) return alert("Nomor meja wajib diisi untuk Dine-in!");
@@ -127,6 +160,7 @@ export default function AdminOrders() {
     setIsSubmittingManual(true);
 
     try {
+      // Menyiapkan struktur data (payload) yang sama persis dengan yang dikirim oleh HP Pelanggan
       const payload = {
         customer_name: manualCustomer,
         order_type: manualOrderType,
@@ -139,14 +173,14 @@ export default function AdminOrders() {
 
       await axios.post('https://semesta-cafe-app-production.up.railway.app/api/orders', payload);
 
+      // Bersihkan form setelah sukses
       setManualCustomer('');
       setManualTable('');
       setManualCart([]);
       setManualOrderModalOpen(false);
       
-      fetchData();
+      fetchData(); // Segarkan tabel utama
       alert("Pesanan Manual Berhasil Dibuat!");
-
     } catch (error) {
       console.error("Gagal buat pesanan manual:", error);
       alert(error.response?.data?.error || "Gagal membuat pesanan.");
@@ -155,12 +189,18 @@ export default function AdminOrders() {
     }
   };
 
+  // ==========================================
+  // 7. MESIN PENCARI & FILTER TABEL
+  // ==========================================
+  // Array ini tidak menyentuh database, melainkan hanya memfilter state 'orders' yang sudah di-download
   const filteredOrders = orders.filter(order => {
     let passDate = true;
     let passStatus = true;
 
+    // Filter berdasarkan tab status (Pending, Proses, dll)
     if (activeTab !== 'Semua') { passStatus = order.status === activeTab; }
 
+    // Filter berdasarkan rentang tanggal kalender
     if (startDate || endDate) {
       if (!order.order_date) return false;
       const orderDate = new Date(order.order_date);
@@ -176,16 +216,20 @@ export default function AdminOrders() {
     return passDate && passStatus;
   });
 
+  // Kalkulasi total harga di keranjang kasir
   const manualCartTotal = manualCart.reduce((sum, item) => sum + item.subtotal, 0);
 
+  // --- RENDER UI ---
   return (
     <div className="admin-container animate-fade-in">
+      {/* HEADER SECTION */}
       <div className="admin-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 className="admin-title text-playfair">Daftar Transaksi Pesanan</h2>
           <p className="admin-subtitle">Kelola transaksi pelanggan secara profesional.</p>
         </div>
         
+        {/* Tombol pemicu POS Manual */}
         <button 
           className="btn-apply-filter" 
           style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#1B8A4C' }}
@@ -195,6 +239,7 @@ export default function AdminOrders() {
         </button>
       </div>
 
+      {/* FILTER TANGGAL (MEMBENTANG DI ATAS) */}
       <div className="admin-card" style={{ marginBottom: '20px', padding: '20px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -217,7 +262,10 @@ export default function AdminOrders() {
         </div>
       </div>
 
+      {/* TABS STATUS & TABEL UTAMA */}
       <div className="admin-card" style={{ display: 'flex', flexDirection: 'column' }}>
+        
+        {/* Navigasi Tab Status */}
         <div className="status-tabs-container">
           {['Semua', 'Pending', 'Proses', 'Selesai', 'Batal'].map((tab) => (
             <button 
@@ -231,6 +279,7 @@ export default function AdminOrders() {
           ))}
         </div>
 
+        {/* Tabel Data (Responsive) */}
         <div className="table-responsive" style={{ flex: 1 }}>
           <table className="admin-table modern-table" style={{ width: '100%' }}>
             <thead>
@@ -295,7 +344,9 @@ export default function AdminOrders() {
         </div>
       </div>
 
-      {/* MODAL KASIR OFFLINE */}
+      {/* ========================================================
+          MODAL KASIR OFFLINE (MEMBUAT PESANAN MANUAL)
+          ======================================================== */}
       {manualOrderModalOpen && (
         <div className="custom-modal-overlay">
           <div className="custom-modal-box" style={{ maxWidth: '600px', backgroundColor: '#F8FAFC' }}>
@@ -303,6 +354,8 @@ export default function AdminOrders() {
             <h3 className="text-playfair" style={{ marginBottom: '20px' }}>Buat Pesanan Manual</h3>
             
             <div className="dashboard-main-grid" style={{ gap: '15px', marginTop: '0' }}>
+              
+              {/* KOLOM KIRI: Identitas Pembeli */}
               <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <div className="filter-group">
                   <label className="filter-label">Nama Pelanggan</label>
@@ -316,6 +369,7 @@ export default function AdminOrders() {
                     <option value="Delivery">Kirim (Delivery)</option>
                   </select>
                 </div>
+                {/* Opsi Meja Hanya Muncul Jika Dine-in */}
                 {manualOrderType === 'Dine-in' && (
                   <div className="filter-group">
                     <label className="filter-label">Nomor Meja</label>
@@ -324,6 +378,7 @@ export default function AdminOrders() {
                 )}
               </div>
 
+              {/* KOLOM KANAN: Pilihan Menu & Keranjang */}
               <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 <label className="filter-label">Pilih Menu dari Katalog</label>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
@@ -340,6 +395,7 @@ export default function AdminOrders() {
                 </div>
 
                 <label className="filter-label">Ringkasan Pesanan:</label>
+                {/* Daftar Keranjang Belanja */}
                 <div style={{ maxHeight: '120px', overflowY: 'auto', backgroundColor: '#F1F5F9', borderRadius: '8px', padding: '10px' }}>
                   {manualCart.length === 0 ? (
                     <p style={{ fontSize: '12px', color: '#94A3B8', textAlign: 'center', margin: '10px 0' }}>Belum ada menu dipilih.</p>
@@ -358,6 +414,7 @@ export default function AdminOrders() {
                     ))
                   )}
                 </div>
+                {/* Subtotal Keranjang */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', paddingTop: '10px', borderTop: '2px dashed #E2E8F0' }}>
                   <strong>TOTAL:</strong>
                   <strong style={{ color: '#F5A623', fontSize: '18px' }}>{formatRupiah(manualCartTotal)}</strong>
@@ -366,6 +423,7 @@ export default function AdminOrders() {
               
             </div>
 
+            {/* Tombol Aksi */}
             <div className="custom-modal-actions" style={{ gap: '10px', marginTop: '20px' }}>
               <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setManualOrderModalOpen(false)}>Batal</button>
               <button className="btn-submit" style={{ flex: 1 }} onClick={submitManualOrder} disabled={isSubmittingManual}>
@@ -376,7 +434,9 @@ export default function AdminOrders() {
         </div>
       )}
 
-      {/* MODAL PEMBAYARAN */}
+      {/* ========================================================
+          MODAL PEMBAYARAN TAGIHAN (KASIR)
+          ======================================================== */}
       {modalOpen && selectedOrder && (
         <div className="custom-modal-overlay">
           <div className="custom-modal-box" style={{ backgroundColor: '#ffffff' }}>
@@ -396,6 +456,7 @@ export default function AdminOrders() {
               </select>
 
               <label className="filter-label">Uang Diterima (Nominal)</label>
+              {/* Input difokuskan otomatis agar kasir bisa langsung mengetik angka */}
               <input type="number" className="modern-input" placeholder={`Contoh: ${parseInt(selectedOrder.total_amount)}`} value={uangBayar} onChange={(e) => setUangBayar(e.target.value)} autoFocus />
             </div>
 
@@ -407,7 +468,9 @@ export default function AdminOrders() {
         </div>
       )}
 
-      {/* MODAL HASIL SUKSES */}
+      {/* ========================================================
+          MODAL HASIL SUKSES (MENAMPILKAN KEMBALIAN)
+          ======================================================== */}
       {paymentResult && (
         <div className="custom-modal-overlay">
           <div className="custom-modal-box" style={{ textAlign: 'center', padding: '40px 30px' }}>

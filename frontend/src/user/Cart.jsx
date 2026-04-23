@@ -1,34 +1,24 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { FaShoppingCart, FaTimes, FaUtensils, FaShoppingBag, FaMotorcycle, FaExclamationCircle } from "react-icons/fa"; 
 import "../styles/cart.css";
-import { fmt } from "./Menu";
+// Karena fmt dari Menu.jsx, pastikan ekspornya benar. Atau buat fungsi fmt lokal untuk amannya.
+const fmt = (n) => "Rp " + parseInt(n).toLocaleString("id-ID");
 
 export default function Cart({ cart, onChangeQty, onOrder, onClose }) {
-  // Mengambil item yang jumlahnya (qty) lebih dari 0
   const items = Object.values(cart).filter((i) => i.qty > 0);
-  
-  // Menghitung total harga belanjaan
   const total = items.reduce((a, b) => a + b.price * b.qty, 0);
 
-  // STATE UNTUK TIPE PESANAN & NOMOR MEJA
   const [orderType, setOrderType] = useState("Dine-in");
   const [tableNumber, setTableNumber] = useState("");
-  
-  // STATE BARU: Untuk menyimpan pesan error modern (menggantikan alert jadul)
   const [cartError, setCartError] = useState("");
 
-  // FUNGSI: Validasi sebelum pesanan diteruskan ke App.jsx
   const handlePesan = () => {
-    // Jika tipe pesanan Dine-in TAPI nomor meja kosong/belum diisi
     if (orderType === "Dine-in" && !tableNumber.trim()) {
-      setCartError("Mohon isi nomor meja Anda!"); // Tampilkan pesan error modern
-      
-      // Hilangkan pesan error setelah 3 detik
+      setCartError("Mohon isi nomor meja Anda!"); 
       setTimeout(() => setCartError(""), 3000); 
       return;
     }
     
-    // Jika lolos validasi, kirim data ke fungsi onOrder di App.jsx
     onOrder({
       order_type: orderType,
       table_number: orderType === "Dine-in" ? `Meja ${tableNumber.trim()}` : null
@@ -36,100 +26,132 @@ export default function Cart({ cart, onChangeQty, onOrder, onClose }) {
   };
 
   return (
-    <div className="cart-overlay" onClick={onClose}>
-      {/* Container utama keranjang. e.stopPropagation mencegah keranjang tertutup saat isinya diklik */}
-      <div className="cart-sheet" onClick={(e) => e.stopPropagation()}>
+    // Overlay gelap di belakang keranjang
+    <div className="cart-overlay animate-fade-in" onClick={onClose}>
+      
+      {/* Kotak Keranjang yang Muncul dari Bawah (Slide-Up) */}
+      <div className="cart-sheet animate-slide-up" onClick={(e) => e.stopPropagation()}>
         
-        {/* HEADER KERANJANG */}
+        {/* HEADER */}
         <div className="cart-header">
-          <span className="cart-title">Keranjang Belanja</span>
+          <span className="cart-title">Keranjang Anda</span>
           <button className="cart-close" onClick={onClose} aria-label="Tutup">
             <FaTimes />
           </button>
         </div>
 
-        {/* ISI KERANJANG */}
+        {/* BODY */}
         <div className="cart-body">
-          {/* Kondisi 1: Jika keranjang kosong */}
           {items.length === 0 ? (
+            
+            /* KONDISI KOSONG (Empty State Premium) */
             <div className="cart-empty">
-              <div className="cart-empty-icon" style={{ color: "#E0EBE3" }}>
-                <FaShoppingCart size={70} />
+              <div className="cart-empty-circle">
+                <FaShoppingCart size={40} color="#94A3B8" />
               </div>
-              <p>Keranjang masih kosong</p>
-              <span>Tambahkan menu favoritmu</span>
+              <h3 className="cart-empty-title">Keranjang Masih Kosong</h3>
+              <p className="cart-empty-desc">Yuk, lihat-lihat menu kopi dan camilan kami. Pasti ada yang bikin kamu ngiler!</p>
+              <button className="cart-empty-btn" onClick={onClose}>Eksplor Menu</button>
             </div>
+
           ) : (
-            /* Kondisi 2: Jika keranjang ada isinya */
+            
+            /* KONDISI ADA BARANG */
             <>
-              {/* OPSI TIPE PESANAN (Dine-in / Takeaway / Delivery) */}
-              <div className="order-type-selector">
-                <p className="order-type-label">Tipe Pesanan:</p>
-                <div className="order-type-buttons">
-                  <button className={`type-btn ${orderType === "Dine-in" ? "active" : ""}`} onClick={() => setOrderType("Dine-in")}><FaUtensils /> Dine-in</button>
-                  <button className={`type-btn ${orderType === "Takeaway" ? "active" : ""}`} onClick={() => setOrderType("Takeaway")}><FaShoppingBag /> Takeaway</button>
-                  <button className={`type-btn ${orderType === "Delivery" ? "active" : ""}`} onClick={() => setOrderType("Delivery")}><FaMotorcycle /> Delivery</button>
+              {/* PEMILIH TIPE PESANAN (Modern Tabs) */}
+              <div className="cart-section">
+                <h4 className="cart-section-title">Mau makan di mana?</h4>
+                <div className="order-type-tabs">
+                  <button 
+                    className={`type-tab ${orderType === "Dine-in" ? "active" : ""}`} 
+                    onClick={() => setOrderType("Dine-in")}
+                  >
+                    <FaUtensils /> Makan Sini
+                  </button>
+                  <button 
+                    className={`type-tab ${orderType === "Takeaway" ? "active" : ""}`} 
+                    onClick={() => setOrderType("Takeaway")}
+                  >
+                    <FaShoppingBag /> Bungkus
+                  </button>
+                  <button 
+                    className={`type-tab ${orderType === "Delivery" ? "active" : ""}`} 
+                    onClick={() => setOrderType("Delivery")}
+                  >
+                    <FaMotorcycle /> Antar UMP
+                  </button>
                 </div>
 
-                {/* INPUT NOMOR MEJA (Hanya muncul jika tipe pesanan Dine-in) */}
+                {/* FORM INPUT NOMOR MEJA BERANIMASI */}
                 {orderType === "Dine-in" && (
-                  <div className="table-input-container fade-in">
-                    <label>Nomor Meja Anda:</label>
+                  <div className="table-input-wrapper animate-slide-down">
+                    <label className="table-input-label">Nomor Meja Berapa?</label>
                     <input 
                       type="text" 
-                      placeholder="Contoh: 4" 
+                      className={`table-input-field ${cartError ? "input-error" : ""}`}
+                      placeholder="Contoh: 04" 
                       value={tableNumber} 
                       onChange={(e) => setTableNumber(e.target.value)} 
                       maxLength="4" 
+                      autoFocus
                     />
+                    {cartError && (
+                      <span className="error-text animate-pop">
+                        <FaExclamationCircle size={12} /> {cartError}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* DAFTAR MENU YANG DIPESAN */}
-              <div className="cart-items-wrapper">
-                {items.map((item) => (
-                  <div key={item.id} className="cart-item">
-                    <div className="cart-item-info">
-                      <span className="cart-item-name">{item.name}</span>
-                      <span className="cart-item-price">{fmt(item.price)}</span>
+              {/* LIST BARANG YANG DIBELI */}
+              <div className="cart-section">
+                <h4 className="cart-section-title">Pesanan Kamu</h4>
+                <div className="cart-items-list">
+                  {items.map((item) => (
+                    <div key={item.id} className="cart-item-row">
+                      <div className="cart-item-details">
+                        <span className="item-row-name">{item.name}</span>
+                        <span className="item-row-price">{fmt(item.price)}</span>
+                      </div>
+                      
+                      {/* Kontrol Kuantitas Plus-Minus */}
+                      <div className="cart-qty-control">
+                        <button className="qty-btn-modern" onClick={() => onChangeQty(item.id, -1)} aria-label="Kurangi">−</button>
+                        <span className="qty-number-modern">{item.qty}</span>
+                        <button className="qty-btn-modern plus" onClick={() => onChangeQty(item.id, 1)} aria-label="Tambah">+</button>
+                      </div>
                     </div>
-                    <div className="cart-qty">
-                      <button className="qty-btn" onClick={() => onChangeQty(item.id, -1)}>−</button>
-                      <span className="qty-num">{item.qty}</span>
-                      <button className="qty-btn" onClick={() => onChangeQty(item.id, 1)}>+</button>
-                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* RINGKASAN PEMBAYARAN */}
+              <div className="cart-summary-box">
+                <div className="summary-row">
+                  <span className="summary-label">Subtotal ({items.reduce((a, b) => a + b.qty, 0)} item)</span>
+                  <span className="summary-value">{fmt(total)}</span>
+                </div>
+                {orderType === "Delivery" && (
+                  <div className="summary-row">
+                    <span className="summary-label">Ongkos Kirim (Kampus UMP)</span>
+                    <span className="summary-value text-green-accent">Gratis</span>
                   </div>
-                ))}
-              </div>
-
-              {/* RINGKASAN TOTAL BIAYA */}
-              <div className="cart-total">
-                <span>Total Tagihan</span>
-                <span>{fmt(total)}</span>
-              </div>
-              <div className="cart-summary">
-                <div className="cart-summary-row">
-                  <span>Subtotal ({items.reduce((a, b) => a + b.qty, 0)} item)</span>
-                  <span>{fmt(total)}</span>
-                </div>
-                <div className="cart-summary-row">
-                  <span>Biaya Layanan</span>
-                  <span className="free-tag">Gratis</span>
+                )}
+                <div className="summary-divider"></div>
+                <div className="summary-row total-row">
+                  <span className="total-label">Total Pembayaran</span>
+                  <span className="total-value text-green-accent">{fmt(total)}</span>
                 </div>
               </div>
 
-              {/* ERROR ALERT MODERN (Muncul jika klik pesan tapi meja kosong) */}
-              {cartError && (
-                <div style={{ backgroundColor: '#fee2e2', color: '#dc3545', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', animation: 'fadeIn 0.3s' }}>
-                  <FaExclamationCircle size={16} /> {cartError}
-                </div>
-              )}
+              {/* TOMBOL PESAN (Nempel di bawah) */}
+              <div className="cart-footer">
+                <button className="cart-checkout-btn" onClick={handlePesan}>
+                  Pesan Sekarang — {fmt(total)}
+                </button>
+              </div>
 
-              {/* TOMBOL CHECKOUT */}
-              <button className="cart-order-btn" onClick={handlePesan}>
-                Pesan Sekarang
-              </button>
             </>
           )}
         </div>

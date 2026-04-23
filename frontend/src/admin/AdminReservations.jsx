@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+// Menggunakan ikon untuk mempercantik tabel reservasi
+import { FaCalendarCheck, FaUser, FaClock, FaChair } from 'react-icons/fa';
 import './Admin.css';
 
 export default function AdminReservations() {
-  const [reservations, setReservations] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRes, setSelectedRes] = useState(null);
+  // ==========================================
+  // 1. STATE MANAGEMENT
+  // ==========================================
+  const [reservations, setReservations] = useState([]); // Menyimpan data reservasi dari DB
+  const [modalOpen, setModalOpen] = useState(false); // Kontrol pop-up konfirmasi
+  const [selectedRes, setSelectedRes] = useState(null); // Menyimpan data spesifik yang sedang di-klik
   
-  // State untuk form di dalam Modal
+  // State untuk form di dalam Modal (Tindak Lanjut)
   const [statusInput, setStatusInput] = useState('Dikonfirmasi');
   const [tableInput, setTableInput] = useState('');
 
   // ==========================================
-  // FETCH DATA DARI BACKEND DENGAN AUTO-REFRESH (POLLING)
+  // 2. SINKRONISASI DATA (REAL-TIME POLLING)
   // ==========================================
   const fetchReservations = async () => {
     try {
+      // Menarik data reservasi dari API
       const response = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/reservations');
       setReservations(response.data);
     } catch (error) { 
@@ -26,7 +32,8 @@ export default function AdminReservations() {
   useEffect(() => { 
     fetchReservations(); // Tarikan pertama saat halaman dibuka
 
-    // Fitur Auto-Refresh: Tarik data setiap 5 detik (5000 ms)
+    // Fitur Auto-Refresh: Cek reservasi baru setiap 5 detik
+    // Membantu admin segera tahu jika ada pelanggan yang booking dari HP mereka
     const interval = setInterval(() => {
       fetchReservations();
     }, 5000);
@@ -34,16 +41,24 @@ export default function AdminReservations() {
     return () => clearInterval(interval);
   }, []);
 
+  // ==========================================
+  // 3. LOGIKA TINDAK LANJUT RESERVASI
+  // ==========================================
+  
+  // Membuka modal dan mengisi nilai default form sesuai data yang di-klik
   const openActionModal = (res) => {
     setSelectedRes(res);
     setStatusInput('Dikonfirmasi');
+    // Jika meja sudah diset sebelumnya, tampilkan. Jika belum, kosongkan form.
     setTableInput(res.table_number !== 'Belum Set' ? res.table_number : '');
     setModalOpen(true);
   };
 
+  // Mengirim keputusan admin (Terima/Tolak & Nomor Meja) ke Backend
   const handleUpdateStatus = async () => {
+    // Validasi Cerdas: Jika admin menyetujui, admin WAJIB mengalokasikan meja
     if (statusInput === 'Dikonfirmasi' && !tableInput.trim()) {
-      alert('Nomor meja harus diisi jika dikonfirmasi!');
+      alert('Nomor meja harus diisi jika reservasi dikonfirmasi!');
       return;
     }
 
@@ -52,50 +67,79 @@ export default function AdminReservations() {
         status: statusInput,
         table_number: tableInput || 'Belum Set'
       });
-      setModalOpen(false);
-      fetchReservations(); // Refresh data
+      
+      setModalOpen(false); // Tutup modal
+      fetchReservations(); // Refresh tabel agar status langsung berubah
     } catch (error) {
       alert('Gagal merubah status reservasi.');
     }
   };
 
+  // Fungsi utilitas untuk mengubah format tanggal bawaan MySQL menjadi lebih rapi
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  // --- RENDER UI ---
   return (
-    <div className="admin-container">
-      <h2 className="admin-title">Kelola Reservasi Meja</h2>
-      <p className="admin-subtitle">Atur pemesanan tempat duduk pelanggan.</p>
+    <div className="admin-container animate-fade-in">
+      {/* HEADER SECTION */}
+      <div className="admin-header" style={{ marginBottom: '20px' }}>
+        <div>
+          <h2 className="admin-title text-playfair">Kelola Reservasi Meja</h2>
+          <p className="admin-subtitle">Atur pemesanan tempat duduk pelanggan sebelum mereka datang.</p>
+        </div>
+        <div className="header-icon-badge bg-blue-light"><FaCalendarCheck className="text-blue" /></div>
+      </div>
       
-      <div className="admin-card" style={{ marginTop: '20px' }}>
+      {/* TABEL DATA RESERVASI */}
+      <div className="admin-card">
         <div className="table-responsive">
-          <table className="admin-table">
+          <table className="admin-table modern-table" style={{ width: '100%' }}>
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Pelanggan</th>
-                <th>Waktu Reservasi</th>
-                <th>Tamu</th>
-                <th>Meja</th>
+                <th>Data Pelanggan</th>
+                <th>Jadwal Reservasi</th>
+                <th>Kapasitas</th>
+                <th>Alokasi Meja</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {reservations.map((res) => (
-                <tr key={res.id}>
-                  <td style={{ fontWeight: 'bold' }}>#{res.id}</td>
+                <tr key={res.id} className="table-row-hover">
+                  <td style={{ fontWeight: 'bold', color: '#64748B' }}>#{res.id}</td>
+                  
                   <td>
-                    <div style={{ fontWeight: 'bold', color: '#1C2B1E' }}>{res.customer_name}</div>
-                    <div style={{ fontSize: '12px', color: '#6B7A6E' }}>{res.phone}</div>
+                    <div style={{ fontWeight: 'bold', color: '#1C2B1E', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <FaUser size={10} color="#A3AED1" /> {res.customer_name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#6B7A6E', marginTop: '4px' }}>{res.phone}</div>
                   </td>
+                  
                   <td>
-                    <div style={{ fontWeight: 'bold' }}>{formatDate(res.reservation_date)}</div>
-                    <div style={{ fontSize: '13px', color: '#1B8A4C' }}>Pukul {res.reservation_time.substring(0, 5)} WIB</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{formatDate(res.reservation_date)}</div>
+                    <div style={{ fontSize: '12px', color: '#3B82F6', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                      <FaClock size={10} /> Pukul {res.reservation_time.substring(0, 5)} WIB
+                    </div>
                   </td>
-                  <td>{res.guests} Orang</td>
-                  <td style={{ fontWeight: 'bold', color: '#F5A623' }}>{res.table_number}</td>
+                  
+                  <td>
+                    <span style={{ fontWeight: '600' }}>{res.guests} Orang</span>
+                  </td>
+                  
+                  <td>
+                    {res.table_number !== 'Belum Set' ? (
+                       <span style={{ fontWeight: '800', color: '#F5A623', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                         <FaChair size={12} /> {res.table_number}
+                       </span>
+                    ) : (
+                       <span style={{ color: '#94A3B8', fontSize: '12px', fontStyle: 'italic' }}>Belum diatur</span>
+                    )}
+                  </td>
+                  
                   <td>
                     <span className={`status-badge ${
                       res.status === 'Dikonfirmasi' ? 'status-selesai' : 
@@ -104,9 +148,11 @@ export default function AdminReservations() {
                       {res.status}
                     </span>
                   </td>
+                  
                   <td>
+                    {/* Tombol aksi hanya muncul jika status masih Pending */}
                     {res.status === 'Pending' && (
-                      <button onClick={() => openActionModal(res)} className="btn-action btn-primary">
+                      <button onClick={() => openActionModal(res)} className="btn-action btn-primary" style={{ fontSize: '11px', padding: '6px 12px' }}>
                         Tindak Lanjut
                       </button>
                     )}
@@ -114,24 +160,30 @@ export default function AdminReservations() {
                 </tr>
               ))}
               {reservations.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: '#6B7A6E' }}>Belum ada data reservasi.</td></tr>
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#94A3B8' }}>Belum ada data reservasi.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* POP-UP MODAL MODERN UNTUK KONFIRMASI MEJA */}
+      {/* ========================================================
+          MODAL TINDAK LANJUT RESERVASI
+          ======================================================== */}
       {modalOpen && selectedRes && (
         <div className="custom-modal-overlay">
           <div className="custom-modal-box">
-            <h3>Tindak Lanjut Reservasi</h3>
-            <p style={{ marginBottom: '10px' }}>Atas nama: <strong>{selectedRes.customer_name}</strong> ({selectedRes.guests} orang)</p>
+            <h3 className="text-playfair" style={{ marginBottom: '15px' }}>Tindak Lanjut Reservasi</h3>
+            
+            <div style={{ backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px' }}>
+              Pemesan: <strong style={{ color: '#1E293B' }}>{selectedRes.customer_name}</strong> <br/>
+              Kapasitas: <strong>{selectedRes.guests} orang</strong>
+            </div>
             
             <div style={{ textAlign: 'left', marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>Ubah Status:</label>
+              <label className="filter-label">Keputusan (Ubah Status)</label>
               <select 
-                className="admin-input" 
+                className="modern-input" 
                 style={{ width: '100%', marginBottom: '15px' }}
                 value={statusInput} 
                 onChange={(e) => setStatusInput(e.target.value)}
@@ -140,16 +192,18 @@ export default function AdminReservations() {
                 <option value="Dibatalkan">Tolak (Batalkan)</option>
               </select>
 
+              {/* Input Nomor Meja HANYA muncul jika admin memilih 'Dikonfirmasi' */}
               {statusInput === 'Dikonfirmasi' && (
                 <>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>Alokasikan Nomor Meja:</label>
+                  <label className="filter-label">Alokasikan Nomor Meja</label>
                   <input 
                     type="text" 
-                    className="admin-input" 
+                    className="modern-input" 
                     style={{ width: '100%' }}
-                    placeholder="Contoh: Meja 04, VIP 1" 
+                    placeholder="Contoh: Meja 04, Ruang VIP 1" 
                     value={tableInput}
                     onChange={(e) => setTableInput(e.target.value)}
+                    autoFocus
                   />
                 </>
               )}

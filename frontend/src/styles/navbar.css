@@ -1,166 +1,266 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Nunito:wght@400;600;700&display=swap');
+/* =========================================
+   STYLE KHUSUS NAVIGASI UTAMA (NAVBAR)
+   ========================================= */
 
-.navbar {
+.navbar-modern {
   position: fixed;
   top: 0; left: 0; right: 0;
-  z-index: 100;
-  background: transparent;
-  transition: background 0.3s, box-shadow 0.3s;
+  z-index: 999; /* Z-Index tinggi, tapi tetap di bawah Modal/Cart */
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  padding: 15px 0;
   font-family: 'Nunito', sans-serif;
+  /* State Awal: Transparan */
+  background-color: transparent;
 }
-.navbar.scrolled {
-  background: #1B8A4C;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+
+/* State Saat Di-scroll: Glassmorphism Mewah */
+.navbar-modern.scrolled {
+  padding: 10px 0;
+  background-color: rgba(27, 138, 76, 0.95); /* Hijau transparan */
+  backdrop-filter: blur(12px); /* Efek kaca */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
-.navbar-container {
+
+.nav-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 14px 24px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-/* Pengaturan Logo Gambar */
-.navbar-brand {
-  display: flex;
-  align-items: center;
+/* =========================================
+   1. BAGIAN LOGO (KIRI)
+   ========================================= */
+.nav-brand {
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.95); /* Latar belakang putih agak transparan */
-  padding: 6px 14px; /* Bantalan kiri-kanan-atas-bawah */
-  border-radius: 30px; /* Membuat sudutnya sangat melengkung (seperti pil) */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Efek bayangan halus */
-  transition: transform 0.2s;
-}
-
-.navbar-brand:hover {
-  transform: translateY(-2px); /* Efek melayang sedikit saat disentuh kursor */
-}
-
-.navbar-logo-img {
-  height: 28px; /* Sedikit dikecilkan karena sudah ada bantalan di luarnya */
-  width: auto;
-  display: block;
-}
-.navbar-logo-img {
-  height: 35px;
-  width: auto;
-  display: block;
-}
-
-.navbar-links {
   display: flex;
   align-items: center;
-  gap: 8px;
+  z-index: 101; /* Memastikan logo bisa diklik meski menu mobile terbuka */
 }
+
+/* Membuat background putih berbentuk pil (Kapsul) untuk logo */
+.nav-logo-pill {
+  background-color: #FFFFFF;
+  padding: 5px 16px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+}
+
+.nav-brand:hover .nav-logo-pill {
+  transform: scale(1.05);
+}
+
+.nav-logo-img {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+/* =========================================
+   2. BAGIAN LINK MENU (TENGAH)
+   ========================================= */
+.nav-menu-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+  background-color: rgba(255, 255, 255, 0.1); /* Background kapsul redup untuk menu */
+  padding: 6px;
+  border-radius: 30px;
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(5px);
+}
+
 .nav-link {
-  color: rgba(255,255,255,0.85);
+  color: #E2E8F0;
   text-decoration: none;
   font-size: 14px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 6px;
-  transition: color 0.2s, background 0.2s;
-}
-.nav-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.nav-btn {
-  font-family: 'Nunito', sans-serif;
-  font-size: 13px;
   font-weight: 700;
-  padding: 7px 14px;
+  padding: 8px 18px;
   border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
 }
-.res-btn {
-  background: transparent;
-  color: #fff;
-  border: 1.5px solid rgba(255,255,255,0.5);
-}
-.res-btn:hover { background: rgba(255,255,255,0.15); border-color: #fff; }
 
-/* Area Kanan Navbar (Keranjang & Hamburger) */
-.navbar-right {
+/* Hover Menu */
+.nav-link:hover {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* State Menu Sedang Aktif (Scroll-spy) */
+.nav-link.active {
+  background-color: #FFFFFF;
+  color: #1B8A4C; /* Teks hijau */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* =========================================
+   3. BAGIAN TOMBOL AKSI (KANAN)
+   ========================================= */
+.nav-actions {
   display: flex;
   align-items: center;
-  gap: 15px; 
+  gap: 15px;
+  z-index: 101;
 }
 
-/* Tombol Keranjang Mobile */
-.cart-btn-mobile {
-  background: #F5A623;
-  color: #fff;
+/* Tombol Keranjang Modern */
+.nav-cart-btn {
+  background-color: #F5A623; /* Oranye Semesta */
+  color: #FFFFFF;
   border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: 700;
-  font-family: 'Nunito', sans-serif;
-  cursor: pointer;
+  padding: 8px 16px 8px 12px;
+  border-radius: 30px;
   display: flex;
   align-items: center;
-  gap: 8px; /* Jarak antara ikon dan teks */
-  position: relative;
-  transition: transform 0.15s, background 0.2s;
+  gap: 10px;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.3);
 }
-.cart-btn-mobile:hover { background: #D4891A; }
-.cart-btn-mobile:active { transform: scale(0.95); }
 
-.cart-badge {
-  background: #fff;
-  color: #1B8A4C;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  font-size: 10px;
-  font-weight: 700;
-  display: inline-flex;
+.nav-cart-btn:hover {
+  background-color: #D4891A;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(245, 166, 35, 0.4);
+}
+
+.nav-cart-btn:active {
+  transform: scale(0.95);
+}
+
+.cart-icon-wrapper {
+  position: relative;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.hamburger {
-  display: none;
+.cart-label-text {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* Indikator Angka Keranjang dengan Animasi Kedip (Pulse) */
+.cart-badge-pulse {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  background-color: #EF4444; /* Merah Alert */
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 900;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #F5A623; /* Border warna tombol oranye */
+  animation: pulseBadge 2s infinite;
+}
+
+@keyframes pulseBadge {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* =========================================
+   4. HAMBURGER MENU (MOBILE)
+   ========================================= */
+.nav-hamburger {
+  display: none; /* Disembunyikan di PC */
   flex-direction: column;
-  gap: 5px;
-  background: none;
+  justify-content: space-between;
+  width: 24px;
+  height: 18px;
+  background: transparent;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
 }
-.hamburger span {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: #fff;
-  border-radius: 2px;
-  transition: all 0.3s;
-}
-.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.hamburger.open span:nth-child(2) { opacity: 0; }
-.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-@media (max-width: 768px) {
-  .hamburger { display: flex; }
-  .navbar-links {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0; right: 0;
-    background: #1B8A4C;
-    flex-direction: column;
-    padding: 16px 24px 20px;
-    gap: 4px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  }
-  .navbar-links.open { display: flex; }
-  .nav-link { width: 100%; }
-  .nav-btn { width: 100%; justify-content: center; }
+.nav-hamburger span {
+  width: 100%;
+  height: 2.5px;
+  background-color: #FFFFFF;
+  border-radius: 4px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animasi silang saat dibuka */
+.nav-hamburger.is-active span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+.nav-hamburger.is-active span:nth-child(2) { opacity: 0; transform: translateX(-10px); }
+.nav-hamburger.is-active span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+
+/* =========================================
+   5. RESPONSIVE DESIGN (HP & TABLET)
+   ========================================= */
+@media (max-width: 850px) {
+  .nav-hamburger { display: flex; }
   
-  /* Sembunyikan teks keranjang di layar kecil */
-  .cart-text { display: none; }
-  .cart-btn-mobile {
-    padding: 8px 12px;
-    font-size: 18px;
+  /* Menyembunyikan Teks "Keranjang" agar ringkas di HP */
+  .cart-label-text { display: none; }
+  .nav-cart-btn { padding: 10px; border-radius: 50%; } /* Berubah jadi tombol bulat di HP */
+  .cart-badge-pulse { right: -6px; top: -6px; }
+
+  /* Merubah Navigasi Tengah menjadi Dropdown Layar Penuh */
+  .nav-menu-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: #136B3A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Transisi geser dari atas (Slide down) */
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    z-index: 100;
   }
-  .navbar-right { gap: 10px; }
+
+  .nav-menu-wrapper.is-open {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Susunan Menu vertikal di HP */
+  .nav-links {
+    flex-direction: column;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    gap: 20px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .nav-link {
+    font-size: 24px;
+    font-family: 'Playfair Display', serif;
+    padding: 15px;
+    width: 100%;
+    border-radius: 0;
+  }
+
+  .nav-link.active {
+    background-color: transparent;
+    color: #F5A623; /* Aktif jadi oranye di HP */
+    box-shadow: none;
+  }
 }

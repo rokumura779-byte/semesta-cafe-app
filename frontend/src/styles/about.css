@@ -1,76 +1,196 @@
-.about {
-  background: #fff;
+/* =========================================
+   STYLE KHUSUS HALAMAN TENTANG KAMI (ABOUT)
+   ========================================= */
+
+.about-section {
+  background-color: #FFFFFF;
   padding: 80px 24px;
   font-family: 'Nunito', sans-serif;
+  position: relative;
+  overflow: hidden;
 }
-.about-container { max-width: 1000px; margin: 0 auto; }
-.about-header { text-align: center; margin-bottom: 48px; }
+
+/* Membatasi lebar konten agar tidak terlalu melebar di layar PC yang besar */
+.about-container { 
+  max-width: 1000px; 
+  margin: 0 auto; 
+}
+
+/* =========================================
+   1. HEADER SECTION
+   ========================================= */
+.about-header { 
+  text-align: center; 
+  margin-bottom: 50px; 
+}
+
 .about-tag {
   display: inline-block;
   background: #E8F7EE;
-  color: #1B8A4C;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 14px;
+  color: #1B8A4C; /* Hijau Semesta */
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 16px;
   border-radius: 20px;
-  margin-bottom: 12px;
+  margin-bottom: 15px;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
 }
-.about-title {
+
+/* Tipografi Elegan menggunakan font serif */
+.text-playfair {
   font-family: 'Playfair Display', serif;
-  font-size: clamp(28px, 5vw, 40px);
-  color: #1C2B1E;
-  font-weight: 600;
-  margin-bottom: 12px;
 }
+
+.about-title {
+  font-size: clamp(28px, 5vw, 42px);
+  color: #1E293B; /* Abu-abu sangat gelap (Slate) */
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Garis bawah estetis sebagai pemanis judul */
+.about-title-underline {
+  width: 60px;
+  height: 3px;
+  background-color: #1B8A4C;
+  margin: 15px auto;
+  border-radius: 2px;
+}
+
 .about-desc {
   font-size: 15px;
-  color: #6B7A6E;
-  line-height: 1.7;
-  max-width: 560px;
+  color: #64748B;
+  line-height: 1.8;
+  max-width: 600px;
   margin: 0 auto;
 }
+
+/* =========================================
+   2. GRID FITUR (Pilar Layanan)
+   ========================================= */
 .about-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 48px;
+  /* Responsif otomatis: 1 kolom di HP, hingga 4 kolom di PC */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 25px;
+  margin-bottom: 60px;
 }
+
+/* Kartu Fitur (Card) */
 .about-card {
-  background: #F4F8F5;
-  border-radius: 14px;
-  padding: 24px 20px;
-  text-align: center;
-  transition: background 0.2s;
-}
-.about-card:hover { background: #E8F7EE; }
-.about-card-icon { font-size: 32px; margin-bottom: 12px; }
-.about-card-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  color: #1C2B1E;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.about-card-desc { font-size: 13px; color: #6B7A6E; line-height: 1.6; }
-.about-info {
-  background: #1B8A4C;
+  background: #F8FAFC; /* Slate muda */
+  border: 1px solid #E2E8F0;
   border-radius: 16px;
-  padding: 28px 32px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  justify-content: space-between;
+  padding: 30px 20px;
+  text-align: center;
+  /* Animasi mulus saat dihover */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
 }
-.about-info-item { display: flex; flex-direction: column; gap: 4px; }
-.info-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.5px; }
-.info-value { font-size: 14px; font-weight: 700; color: #fff; }
-/* Tambahkan ini di about.css */
+
+/* Efek melayang saat mouse berada di atas kartu */
+.about-card:hover { 
+  transform: translateY(-8px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.05);
+  border-color: #CBD5E1;
+}
+
+/* Pembungkus Ikon agar ukurannya seragam */
 .about-card-icon-modern {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 60px;
+  font-size: 40px; /* Ukuran Ikon React */
+  transition: transform 0.3s ease;
+}
+
+/* Ikon sedikit membesar saat kartunya di-hover */
+.about-card:hover .about-card-icon-modern {
+  transform: scale(1.1);
+}
+
+.about-card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: #1E293B;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.about-card-desc { 
+  font-size: 13px; 
+  color: #64748B; 
+  line-height: 1.6; 
+  margin: 0;
+}
+
+/* =========================================
+   3. INFO BOX (Bagian Bawah)
+   ========================================= */
+.about-info-box {
+  background: #1E293B; /* Biru dongker/Slate sangat gelap agar kontras */
+  border-radius: 16px;
+  padding: 30px 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  justify-content: space-between;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.about-info-item { 
+  display: flex; 
+  align-items: center; /* Ikon dan teks sejajar horizontal */
+  gap: 15px; 
+}
+
+/* Warna ikon di info box dibedakan agar menonjol di latar gelap */
+.info-icon {
+  font-size: 24px;
+  color: #1B8A4C; /* Hijau Semesta */
+}
+
+.info-label { 
+  display: block; /* Agar label dan value turun baris */
+  font-size: 11px; 
+  font-weight: 800; 
+  color: #94A3B8; 
+  text-transform: uppercase; 
+  letter-spacing: 1px; 
+  margin-bottom: 4px;
+}
+
+.info-value { 
+  display: block;
+  font-size: 14px; 
+  font-weight: 700; 
+  color: #FFFFFF; 
+}
+
+/* =========================================
+   ANIMASI MUNCUL
+   ========================================= */
+.animate-fade-in {
+  animation: fadeUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsif untuk Layar HP */
+@media (max-width: 768px) {
+  .about-info-box {
+    flex-direction: column;
+    padding: 25px;
+    gap: 20px;
+  }
+  
+  .about-info-item {
+    align-items: flex-start;
+  }
 }
