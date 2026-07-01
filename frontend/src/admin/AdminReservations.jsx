@@ -1,14 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
+// PERBAIKAN: import axios (biasa) diganti axiosAdmin, karena GET/PUT
+// /api/reservations sekarang diproteksi verifyToken di backend dan wajib
+// bawa token JWT admin. axiosAdmin otomatis menempelkan header Authorization
+// di setiap request (lihat frontend/src/config/axiosAdmin.js).
+import axiosAdmin from '../config/axiosAdmin';
 // Menggunakan ikon untuk mempercantik tabel reservasi
 import { FaCalendarCheck, FaUser, FaClock, FaChair } from 'react-icons/fa';
+
+// TAMBAHAN: OPTIMASI WEB - REACT QUERY (CACHING)
+// useQuery menggantikan fetch manual + setInterval untuk data 'reservations'.
+import { useQuery } from '@tanstack/react-query';
+
+// TAMBAHAN: Import konstanta URL backend (menggantikan hardcode localhost)
+import { API_BASE_URL } from '../config/api';
+
 import './Admin.css';
 
 export default function AdminReservations() {
   // ==========================================
   // 1. STATE MANAGEMENT
   // ==========================================
-  const [reservations, setReservations] = useState([]); // Menyimpan data reservasi dari DB
+  // PERUBAHAN: 'reservations' sebelumnya disimpan pakai useState dan
+  // di-update manual lewat fetchReservations() + setInterval. Sekarang
+  // diambil dari useQuery di bawah (lihat bagian "TAMBAHAN: useQuery").
   const [modalOpen, setModalOpen] = useState(false); // Kontrol pop-up konfirmasi
   const [selectedRes, setSelectedRes] = useState(null); // Menyimpan data spesifik yang sedang di-klik
   
@@ -17,29 +31,21 @@ export default function AdminReservations() {
   const [tableInput, setTableInput] = useState('');
 
   // ==========================================
-  // 2. SINKRONISASI DATA (REAL-TIME POLLING)
+  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching + Auto Refetch)
   // ==========================================
-  const fetchReservations = async () => {
-    try {
-      // Menarik data reservasi dari API
-      const response = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/reservations');
-      setReservations(response.data);
-    } catch (error) { 
-      console.error("Gagal menarik data reservasi:", error); 
-    }
-  };
-
-  useEffect(() => { 
-    fetchReservations(); // Tarikan pertama saat halaman dibuka
-
-    // Fitur Auto-Refresh: Cek reservasi baru setiap 5 detik
-    // Membantu admin segera tahu jika ada pelanggan yang booking dari HP mereka
-    const interval = setInterval(() => {
-      fetchReservations();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
+  // PERUBAHAN: Sebelumnya pakai fetchReservations() manual + useEffect +
+  // setInterval(5000) untuk auto-refresh tiap 5 detik. Sekarang cukup satu
+  // useQuery dengan refetchInterval, lifecycle (mulai/berhenti polling saat
+  // komponen mount/unmount) dikelola otomatis oleh React Query.
+  const { data: reservations = [], refetch: refetchReservations } = useQuery({
+    queryKey: ['reservations'],
+    queryFn: async () => {
+      // PERBAIKAN: axios -> axiosAdmin (GET /api/reservations diproteksi verifyToken di backend)
+      const response = await axiosAdmin.get(`${API_BASE_URL}/api/reservations`);
+      return response.data;
+    },
+    refetchInterval: 5000, // Tetap auto-refresh tiap 5 detik seperti sebelumnya
+  });
 
   // ==========================================
   // 3. LOGIKA TINDAK LANJUT RESERVASI
@@ -63,13 +69,16 @@ export default function AdminReservations() {
     }
 
     try {
-      await axios.put(`https://semesta-cafe-app-production.up.railway.app/api/reservations/${selectedRes.id}/status`, {
+      // PERBAIKAN: axios -> axiosAdmin (PUT /api/reservations/:id/status butuh token admin)
+      await axiosAdmin.put(`${API_BASE_URL}/api/reservations/${selectedRes.id}/status`, {
         status: statusInput,
         table_number: tableInput || 'Belum Set'
       });
       
       setModalOpen(false); // Tutup modal
-      fetchReservations(); // Refresh tabel agar status langsung berubah
+      // PERUBAHAN: fetchReservations() diganti refetchReservations() bawaan
+      // useQuery, agar tabel langsung ter-update setelah status diubah.
+      refetchReservations();
     } catch (error) {
       alert('Gagal merubah status reservasi.');
     }

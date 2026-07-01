@@ -1,3 +1,10 @@
+// ==========================================
+// TAMBAHAN: Memuat variabel dari file .env
+// ==========================================
+// Wajib dipanggil paling atas agar process.env terisi
+// sebelum digunakan di bawah ini.
+require('dotenv').config();
+
 const mysql = require('mysql2/promise');
 
 // ==========================================
@@ -6,12 +13,16 @@ const mysql = require('mysql2/promise');
 // Kita menggunakan 'createPool' (bukan createConnection biasa).
 // Tujuannya agar server bisa menangani banyak pelanggan (request) secara bersamaan
 // tanpa membuat server kelebihan beban (efisiensi memori).
+//
+// PERUBAHAN: Kredensial yang sebelumnya hardcode (tertulis langsung di kode)
+// sekarang dipindah ke file .env dan dibaca lewat process.env.
+// Tujuannya agar kredensial rahasia tidak ikut ter-upload ke GitHub.
 const db = mysql.createPool({
-  host: 'semesta-db-rinomiftah-1331.g.aivencloud.com',
-  user: 'avnadmin',
-  password: 'AVNS_7RhC5G_L_QycUn5qiG2', // Kredensial rahasia Cloud Aiven
-  database: 'defaultdb',
-  port: 17458,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD, // Kredensial rahasia Cloud Aiven (sekarang dari .env)
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
   ssl: {
     // Wajib diaktifkan karena database berada di internet (Cloud).
     // rejectUnauthorized di-set false agar koneksi tetap diizinkan

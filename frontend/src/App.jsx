@@ -1,6 +1,20 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"; 
 import axios from 'axios';
+
+// ==========================================
+// TAMBAHAN: OPTIMASI WEB - REACT QUERY (CACHING)
+// ==========================================
+// QueryClient & QueryClientProvider dari @tanstack/react-query digunakan untuk
+// menyediakan sistem caching data API ke seluruh aplikasi (sesuai materi
+// "Optimasi Kinerja Web" - Caching). Semua halaman admin nantinya akan
+// memakai useQuery yang otomatis menyimpan cache, dedup request, dan
+// auto-refetch tanpa perlu setInterval manual lagi.
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// TAMBAHAN: Import konstanta URL backend agar tidak hardcode di banyak file.
+// Saat ini mengarah ke localhost untuk development/testing.
+import { API_BASE_URL } from "./config/api";
 
 // --- IMPORT KOMPONEN USER ---
 import Navbar from "./user/Navbar";
@@ -12,16 +26,50 @@ import Footer from "./user/Footer";
 import Cart from "./user/Cart";
 import Reservation from "./user/Reservation";
 
-// --- IMPORT KOMPONEN ADMIN ---
-import AdminLogin from "./admin/AdminLogin"; 
-import AdminDashboard from "./admin/AdminDashboard"; 
-import AdminMenu from "./admin/AdminMenu";
+// ==========================================
+// TAMBAHAN: OPTIMASI WEB - LAZY LOADING / CODE SPLITTING (KOMPONEN ADMIN)
+// ==========================================
+// PERUBAHAN: Sebelumnya semua komponen admin di-import secara statis di atas
+// (import AdminDashboard from "./admin/AdminDashboard", dst). Itu artinya
+// kode admin (termasuk library besar seperti recharts, exceljs, html2pdf.js
+// yang dipakai di AdminDashboard) IKUT ter-bundle dan ter-download oleh
+// PELANGGAN yang hanya membuka halaman utama ("/"), padahal mereka tidak
+// pernah membuka halaman admin sama sekali.
+//
+// Dengan React.lazy(), kode komponen admin dipisah menjadi chunk file
+// terpisah oleh Vite, dan baru di-download oleh browser saat pengguna
+// benar-benar mengakses rute /admin/*. Ini mengurangi ukuran bundle awal
+// yang harus diunduh pelanggan biasa.
+//
+// AdminSidebar TIDAK di-lazy-load karena dia berperan sebagai "kerangka" 
+// (layout) admin yang berisi <Suspense> untuk membungkus {children} -- 
+// lihat AdminSidebar.jsx untuk detailnya.
 import AdminSidebar from "./admin/AdminSidebar";
-import AdminOrders from "./admin/AdminOrders";
-import AdminReservations from "./admin/AdminReservations";
+const AdminLogin = lazy(() => import("./admin/AdminLogin"));
+const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
+const AdminMenu = lazy(() => import("./admin/AdminMenu"));
+const AdminOrders = lazy(() => import("./admin/AdminOrders"));
+const AdminReservations = lazy(() => import("./admin/AdminReservations"));
 
 // --- IMPORT CSS GLOBAL ---
 import "./App.css";
+
+// ==========================================
+// TAMBAHAN: INSTANCE QUERY CLIENT
+// ==========================================
+// Dibuat di luar komponen App agar tidak dibuat ulang setiap kali re-render.
+// Konfigurasi default di sini berlaku untuk semua useQuery di seluruh aplikasi,
+// kecuali di-override secara spesifik di masing-masing komponen.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // staleTime: data dianggap "masih segar" selama 10 detik setelah fetch.
+      // Selama masih segar, useQuery tidak akan fetch ulang otomatis saat
+      // komponen di-mount ulang (misal: admin pindah halaman lalu balik lagi).
+      staleTime: 10 * 1000,
+    },
+  },
+});
 
 // ==========================================
 // 1. KOMPONEN LOADING PREMIUM (Tampilan Splash Screen)
@@ -126,7 +174,9 @@ function HalamanUser() {
     const savedOrderId = localStorage.getItem('semesta_active_order');
 
     try {
-      const response = await axios.post('https://semesta-cafe-app-production.up.railway.app/api/orders', {
+      // PERUBAHAN: URL backend sekarang memakai konstanta API_BASE_URL
+      // (sebelumnya hardcode ke URL Railway production)
+      const response = await axios.post(`${API_BASE_URL}/api/orders`, {
         customer_name: customerName,
         order_type: tempOrderData?.order_type || 'Dine-in',
         table_number: tempOrderData?.table_number || null,
@@ -226,20 +276,37 @@ function HalamanUser() {
 // ==========================================
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Rute untuk Pelanggan */}
-        <Route path="/" element={<HalamanUser />} />
-        
-        {/* Rute Login Admin */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        
-        {/* Rute Area Admin (Dilindungi oleh PrivateRoute dengan Animasi Loading) */}
-        <Route path="/admin" element={<PrivateRoute><AdminSidebar><AdminDashboard /></AdminSidebar></PrivateRoute>} />
-        <Route path="/admin/orders" element={<PrivateRoute><AdminSidebar><AdminOrders /></AdminSidebar></PrivateRoute>} />
-        <Route path="/admin/reservations" element={<PrivateRoute><AdminSidebar><AdminReservations /></AdminSidebar></PrivateRoute>} />
-        <Route path="/admin/menu" element={<PrivateRoute><AdminSidebar><AdminMenu /></AdminSidebar></PrivateRoute>} />
-      </Routes>
-    </Router>
+    // TAMBAHAN: Membungkus seluruh aplikasi dengan QueryClientProvider,
+    // supaya semua komponen anak (termasuk halaman admin) bisa memakai
+    // hook useQuery dari @tanstack/react-query.
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Routes>
+          {/* Rute untuk Pelanggan */}
+          <Route path="/" element={<HalamanUser />} />
+          
+          {/* Rute Login Admin */}
+          {/* TAMBAHAN: Suspense di sini khusus untuk AdminLogin, karena halaman 
+              ini lazy-loaded tapi TIDAK dibungkus AdminSidebar (yang punya 
+              Suspense sendiri untuk children). Tanpa ini, React akan error 
+              karena AdminLogin di-lazy() tapi tidak ada Suspense boundary 
+              di atasnya pada rute ini. */}
+          <Route 
+            path="/admin/login" 
+            element={
+              <Suspense fallback={<PremiumLoader />}>
+                <AdminLogin />
+              </Suspense>
+            } 
+          />
+          
+          {/* Rute Area Admin (Dilindungi oleh PrivateRoute dengan Animasi Loading) */}
+          <Route path="/admin" element={<PrivateRoute><AdminSidebar><AdminDashboard /></AdminSidebar></PrivateRoute>} />
+          <Route path="/admin/orders" element={<PrivateRoute><AdminSidebar><AdminOrders /></AdminSidebar></PrivateRoute>} />
+          <Route path="/admin/reservations" element={<PrivateRoute><AdminSidebar><AdminReservations /></AdminSidebar></PrivateRoute>} />
+          <Route path="/admin/menu" element={<PrivateRoute><AdminSidebar><AdminMenu /></AdminSidebar></PrivateRoute>} />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
   );
 }

@@ -1,20 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
+// PERBAIKAN: import axios (biasa) diganti axiosAdmin, karena endpoint
+// orders & pembayaran di file ini sekarang butuh token JWT admin.
+// axiosAdmin otomatis menempelkan header Authorization di setiap request
+// (lihat frontend/src/config/axiosAdmin.js).
+import axiosAdmin from '../config/axiosAdmin';
 // Import sekumpulan ikon untuk antarmuka yang intuitif
 import { 
   FaCheckCircle, FaTimesCircle, FaWallet, FaHistory, 
   FaCheck, FaUser, FaReceipt, FaCalendarAlt, FaFilter,
   FaPlus, FaTrash, FaShoppingBag
 } from 'react-icons/fa';
+
+// TAMBAHAN: OPTIMASI WEB - REACT QUERY (CACHING)
+// useQuery menggantikan fetch manual + setInterval untuk data 'orders' dan 'menus'.
+import { useQuery } from '@tanstack/react-query';
+
+// TAMBAHAN: Import konstanta URL backend (menggantikan hardcode localhost)
+import { API_BASE_URL } from '../config/api';
+
 import './Admin.css';
 
 export default function AdminOrders() {
   // ==========================================
   // 1. STATE MANAGEMENT UTAMA
   // ==========================================
-  const [orders, setOrders] = useState([]); // Menyimpan daftar seluruh transaksi
-  const [menus, setMenus] = useState([]); // Menyimpan daftar menu aktif untuk kasir manual
-  
+  // PERUBAHAN: 'orders' dan 'menus' sebelumnya disimpan pakai useState dan
+  // di-update manual lewat fetchData(). Sekarang keduanya diambil dari
+  // useQuery di bawah (lihat bagian "TAMBAHAN: useQuery").
+
   // State untuk Filter Data di Tabel
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -42,33 +55,40 @@ export default function AdminOrders() {
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
 
   // ==========================================
-  // 4. SINKRONISASI DATA (REAL-TIME POLLING)
+  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching + Auto Refetch)
   // ==========================================
-  const fetchData = async () => {
-    try {
-      // Menarik data transaksi terbaru
-      const resOrders = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/orders');
-      setOrders(resOrders.data);
-      
-      // Menarik data menu (hanya yang is_available = 1) untuk kebutuhan dropdown kasir manual
-      const resMenus = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/menus');
-      setMenus(resMenus.data.filter(m => m.is_available === 1));
-    } catch (error) { 
-      console.error("Gagal menarik data:", error); 
-    }
-  };
+  // PERUBAHAN: Sebelumnya ada satu fungsi fetchData() yang menarik 'orders'
+  // dan 'menus' sekaligus lewat useEffect + setInterval setiap 5 detik.
+  // Sekarang dipecah menjadi dua useQuery terpisah:
+  //   - ordersQuery: punya refetchInterval 5 detik (sama seperti sebelumnya),
+  //     karena data transaksi perlu terasa real-time untuk kasir.
+  //   - menusQuery: TIDAK pakai refetchInterval, karena daftar menu jarang
+  //     berubah cepat. Cukup mengandalkan staleTime default (10 detik, di-set
+  //     global di App.jsx) supaya tetap dapat manfaat caching tanpa polling
+  //     berlebihan.
+  const { data: orders = [], refetch: refetchOrders } = useQuery({
+    queryKey: ['orders'],
+    queryFn: async () => {
+      // PERBAIKAN: axios -> axiosAdmin (GET /api/orders diproteksi verifyToken di backend)
+      const response = await axiosAdmin.get(`${API_BASE_URL}/api/orders`);
+      return response.data;
+    },
+    refetchInterval: 5000, // Tetap auto-refresh tiap 5 detik seperti sebelumnya
+  });
 
-  useEffect(() => { 
-    fetchData(); // Eksekusi pertama saat halaman dirender
+  const { data: menus = [] } = useQuery({
+    queryKey: ['menus', 'available'],
+    queryFn: async () => {
+      // PERBAIKAN: axios -> axiosAdmin (aman dikirim token walau route ini publik)
+      const response = await axiosAdmin.get(`${API_BASE_URL}/api/menus`);
+      // Filter hanya menu yang is_available = 1, sama seperti logika lama
+      return response.data.filter(m => m.is_available === 1);
+    },
+  });
 
-    // Auto-Refresh: Menarik data secara diam-diam setiap 5 detik (tanpa reload halaman)
-    const interval = setInterval(() => {
-      fetchData();
-    }, 5000);
-
-    // Mencegah kebocoran memori dengan menghapus siklus jika admin pindah menu
-    return () => clearInterval(interval);
-  }, []);
+  // PERUBAHAN: fetchData() gabungan dihapus. Untuk menyegarkan data transaksi
+  // secara manual (misal setelah pembayaran sukses atau order manual dibuat),
+  // sekarang cukup memanggil refetchOrders() yang disediakan oleh useQuery di atas.
 
   // --- Fungsi Format ---
   const formatRupiah = (angka) => "Rp " + parseInt(angka).toLocaleString('id-ID');
@@ -97,13 +117,16 @@ export default function AdminOrders() {
     if (parseInt(uangBayar) < parseFloat(selectedOrder.total_amount)) return setPaymentResult({ error: "Uang kurang dari tagihan!" });
 
     try {
-      const response = await axios.post(`https://semesta-cafe-app-production.up.railway.app/api/orders/${selectedOrder.id}/pay`, { 
+      // PERBAIKAN: axios -> axiosAdmin (POST /api/orders/:id/pay butuh token admin/kasir)
+      const response = await axiosAdmin.post(`${API_BASE_URL}/api/orders/${selectedOrder.id}/pay`, { 
         uang_bayar: parseInt(uangBayar), payment_method: paymentMethod 
       });
       setModalOpen(false); // Tutup form input
       // Tampilkan struk kembalian yang dihitung oleh MySQL Stored Procedure
       setPaymentResult({ success: true, change: response.data.data.change_amount });
-      fetchData(); // Refresh data tabel
+      // PERUBAHAN: fetchData() diganti refetchOrders() bawaan useQuery untuk
+      // menyegarkan data tabel transaksi setelah pembayaran berhasil.
+      refetchOrders();
     } catch (error) { 
       setPaymentResult({ error: `Gagal: ${error.response?.data?.error || 'Kesalahan Server'}` });
     }
@@ -171,7 +194,13 @@ export default function AdminOrders() {
         }))
       };
 
-      await axios.post('https://semesta-cafe-app-production.up.railway.app/api/orders', payload);
+      // PERBAIKAN: axios -> axiosAdmin. Endpoint POST /api/orders sendiri
+      // publik di backend (tidak pakai verifyToken, karena dipakai juga
+      // oleh pelanggan saat checkout), tapi di sini dipakai lewat panel
+      // admin, jadi disamakan pakai axiosAdmin biar satu file konsisten
+      // satu jenis axios saja -- token yang ikut terkirim tidak masalah,
+      // backend cukup mengabaikannya di route yang tidak memintanya.
+      await axiosAdmin.post(`${API_BASE_URL}/api/orders`, payload);
 
       // Bersihkan form setelah sukses
       setManualCustomer('');
@@ -179,7 +208,8 @@ export default function AdminOrders() {
       setManualCart([]);
       setManualOrderModalOpen(false);
       
-      fetchData(); // Segarkan tabel utama
+      // PERUBAHAN: fetchData() diganti refetchOrders() bawaan useQuery
+      refetchOrders();
       alert("Pesanan Manual Berhasil Dibuat!");
     } catch (error) {
       console.error("Gagal buat pesanan manual:", error);

@@ -1,15 +1,82 @@
+// ==========================================
+// TAMBAHAN: Memuat variabel dari file .env
+// ==========================================
+// Wajib dipanggil paling atas, sebelum modul lain yang butuh process.env (seperti db.js)
+require('dotenv').config();
+
 const db = require('./db');
 const express = require('express');
 const cors = require('cors');
+const webpush = require('web-push');
+
+// ==========================================
+// TAMBAHAN: JWT & BCRYPT UNTUK AUTENTIKASI ADMIN
+// ==========================================
+// jsonwebtoken -> untuk membuat (sign) & memverifikasi token saat login/akses admin
+// bcryptjs     -> untuk membandingkan password yang diketik user dengan hash di .env
+// verifyToken  -> middleware "satpam" yang dipasang di route-route admin (lihat middleware/auth.js)
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const verifyToken = require('./middleware/auth');
+
+// TAMBAHAN: Import middleware compression untuk optimasi kinerja web
+// Fungsinya mengompres (gzip/brotli) response sebelum dikirim ke client,
+// sehingga ukuran data yang diunduh browser jadi lebih kecil dan lebih cepat diterima.
+// Sangat berguna untuk endpoint yang mengirim data besar, contohnya /api/menus
+// yang membawa gambar dalam format Base64.
+const compression = require('compression');
+
+// --- TAMBAHAN KEAMANAN 1: Import library rate-limit ---
+const rateLimit = require('express-rate-limit');
+
+// --- TAMBAHAN KEAMANAN 2: Import Helmet untuk sembunyikan identitas server ---
+const helmet = require('helmet');
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Bikin aturan batas login (Maks 5x dalam 15 menit)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 5, 
+  message: { error: "Terlalu banyak percobaan login. Sistem terkunci sementara, coba lagi dalam 15 menit!" }
+});
 // ==========================================
 // MIDDLEWARE (GERBANG KEAMANAN & PENGATURAN DATA)
 // ==========================================
+
+// --- PASANG HELM BAJA DI SINI ---
+app.use(helmet());
+
+// ==========================================
+// KONFIGURASI WEB PUSH (PUSH NOTIFICATION)
+// ==========================================
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL || 'mailto:admin@semestacafe.com',
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
+
+const subscriptions = { user: [], admin: [] };
+
+async function sendNotification(role, payload) {
+  const list = subscriptions[role] || [];
+  const results = await Promise.allSettled(
+    list.map(sub => webpush.sendNotification(sub, JSON.stringify(payload)))
+  );
+  results.forEach((result, i) => {
+    if (result.status === 'rejected' && [410, 404].includes(result.reason?.statusCode)) {
+      subscriptions[role].splice(i, 1);
+    }
+  });
+}
+
 // 1. Mengizinkan frontend (React) berkomunikasi dengan backend (CORS)
 app.use(cors());
+
+// TAMBAHAN: Mengaktifkan compression untuk SEMUA response yang dikirim server.
+// Ditaruh di awal (sebelum route lain) agar berlaku untuk semua endpoint.
+app.use(compression());
 
 // 2. Mengatur batas ukuran data yang bisa diterima server.
 // Sangat krusial: Kita atur ke '50mb' agar server tidak menolak/crash 
@@ -26,9 +93,18 @@ app.get('/', (req, res) => {
 // 1. API KATEGORI MENU
 // ==========================================
 // [GET] Menarik daftar kategori untuk ditampilkan di dropdown admin/user
+// Dibiarkan TERBUKA (tanpa verifyToken) karena dropdown kategori juga
+// dipakai di halaman menu untuk pelanggan biasa, bukan cuma admin.
 app.get('/api/categories', async (req, res) => {
   try {
     const [categories] = await db.query('SELECT * FROM categories ORDER BY name ASC');
+
+    // TAMBAHAN: Cache-Control header untuk optimasi kinerja web (Browser Caching).
+    // Data kategori jarang berubah, jadi kita izinkan browser menyimpan
+    // response ini selama 60 detik sebelum meminta data baru ke server lagi.
+    // Ini mengurangi jumlah request ke server & mempercepat akses data di sisi client.
+    res.set('Cache-Control', 'public, max-age=60');
+
     res.json(categories);
   } catch (error) {
     res.status(500).json({ error: "Gagal mengambil daftar kategori" });
@@ -36,7 +112,8 @@ app.get('/api/categories', async (req, res) => {
 });
 
 // [POST] Admin membuat kategori baru
-app.post('/api/categories', async (req, res) => {
+// TAMBAHAN: verifyToken -> hanya admin yang sudah login (bawa JWT valid) yang boleh akses
+app.post('/api/categories', verifyToken, async (req, res) => {
   const { name, description } = req.body;
   if (!name) return res.status(400).json({ error: "Nama kategori wajib diisi!" });
   try {
@@ -51,6 +128,7 @@ app.post('/api/categories', async (req, res) => {
 // 2. API KATALOG MENU (PRODUK)
 // ==========================================
 // [GET] Menarik semua menu beserta nama kategorinya (menggunakan JOIN)
+// Dibiarkan TERBUKA karena halaman menu pelanggan juga menampilkan data ini.
 app.get('/api/menus', async (req, res) => {
   try {
     const [menus] = await db.query(`
@@ -65,7 +143,8 @@ app.get('/api/menus', async (req, res) => {
 });
 
 // [POST] Admin memposting menu baru beserta gambarnya
-app.post('/api/menus', async (req, res) => {
+// TAMBAHAN: verifyToken -> wajib login admin
+app.post('/api/menus', verifyToken, async (req, res) => {
   const { category_id, name, price, is_available, image_url } = req.body;
   
   // Validasi: Cegah masuknya data kosong yang bisa membuat database error
@@ -86,7 +165,8 @@ app.post('/api/menus', async (req, res) => {
 });
 
 // [PUT] Admin mengubah data menu yang sudah ada
-app.put('/api/menus/:id', async (req, res) => {
+// TAMBAHAN: verifyToken -> wajib login admin
+app.put('/api/menus/:id', verifyToken, async (req, res) => {
   const { name, price, category_id, is_available, image_url } = req.body;
   if (!category_id) return res.status(400).json({ error: "Kategori tidak valid." });
 
@@ -102,7 +182,8 @@ app.put('/api/menus/:id', async (req, res) => {
 });
 
 // [DELETE] Admin menghapus menu secara permanen
-app.delete('/api/menus/:id', async (req, res) => {
+// TAMBAHAN: verifyToken -> wajib login admin (aksi hapus data harus paling ketat)
+app.delete('/api/menus/:id', verifyToken, async (req, res) => {
   try {
     await db.query(`DELETE FROM menus WHERE id = ?`, [req.params.id]);
     res.json({ message: "Menu dihapus." });
@@ -115,7 +196,8 @@ app.delete('/api/menus/:id', async (req, res) => {
 // 3. API TRANSAKSI PESANAN (KASIR & PELANGGAN)
 // ==========================================
 // [GET] Admin menarik riwayat seluruh pesanan
-app.get('/api/orders', async (req, res) => {
+// TAMBAHAN: verifyToken -> data seluruh pesanan hanya untuk admin, bukan publik
+app.get('/api/orders', verifyToken, async (req, res) => {
   try {
     const [orders] = await db.query('SELECT * FROM orders ORDER BY id DESC');
     res.json(orders);
@@ -125,6 +207,8 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // [POST] Pelanggan membuat pesanan baru (Checkout Logic)
+// Dibiarkan TERBUKA karena ini yang dipanggil pelanggan saat checkout,
+// bukan aksi admin, jadi tidak butuh login.
 app.post('/api/orders', async (req, res) => {
   const { customer_name, order_type, table_number, items, existing_order_id } = req.body;
   
@@ -181,7 +265,6 @@ app.post('/api/orders', async (req, res) => {
       );
       targetOrderId = orderResult.insertId;
     }
-
     // Masukkan detail menu yang dipesan ke tabel order_items
     for (const item of items) {
       await db.query(
@@ -190,6 +273,18 @@ app.post('/api/orders', async (req, res) => {
       );
     }
     
+    sendNotification('admin', {
+      title: '🛎️ Pesanan Baru Masuk!',
+      body: `${customer_name} memesan ${items.length} item (${order_type})`,
+      icon: '/icons/icon-192x192.png',
+      data: { url: '/admin/orders' }
+    });
+    sendNotification('user', {
+      title: '✅ Pesanan Diterima!',
+      body: `Hai ${customer_name}! Pesanan kamu sedang diproses.`,
+      icon: '/icons/icon-192x192.png',
+      data: { url: '/' }
+    });
     res.status(201).json({ message: "Pesanan berhasil diproses.", order_id: targetOrderId });
   } catch (error) {
     res.status(500).json({ error: "Gagal membuat pesanan akibat kesalahan server." });
@@ -197,7 +292,8 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // [POST] Admin / Kasir memproses pembayaran tagihan
-app.post('/api/orders/:id/pay', async (req, res) => {
+// TAMBAHAN: verifyToken -> hanya kasir/admin yang login yang boleh memproses pembayaran
+app.post('/api/orders/:id/pay', verifyToken, async (req, res) => {
   const orderId = req.params.id;
   const { uang_bayar, payment_method } = req.body;
 
@@ -222,6 +318,8 @@ app.post('/api/orders/:id/pay', async (req, res) => {
 // ==========================================
 // 4. API RESERVASI MEJA
 // ==========================================
+// [POST] Pelanggan membuat reservasi baru
+// Dibiarkan TERBUKA karena ini dipanggil pelanggan, bukan aksi admin.
 app.post('/api/reservations', async (req, res) => {
   const { customer_name, phone, reservation_date, reservation_time, guests, notes, table_number } = req.body;
   try {
@@ -235,7 +333,9 @@ app.post('/api/reservations', async (req, res) => {
   }
 });
 
-app.get('/api/reservations', async (req, res) => {
+// [GET] Admin menarik seluruh daftar reservasi
+// TAMBAHAN: verifyToken -> daftar reservasi hanya boleh dilihat admin
+app.get('/api/reservations', verifyToken, async (req, res) => {
   try {
     const [reservations] = await db.query(`SELECT * FROM reservations ORDER BY created_at DESC`);
     res.json(reservations);
@@ -245,13 +345,23 @@ app.get('/api/reservations', async (req, res) => {
 });
 
 // [PUT] Admin mengubah status reservasi (Terima/Tolak) dan mengatur meja
-app.put('/api/reservations/:id/status', async (req, res) => {
+// TAMBAHAN: verifyToken -> wajib login admin
+app.put('/api/reservations/:id/status', verifyToken, async (req, res) => {
   const { status, table_number } = req.body;
   try {
     await db.query(
       `UPDATE reservations SET status = ?, table_number = ? WHERE id = ?`, 
       [status, table_number || 'Belum Set', req.params.id]
     );
+    const notifBody = status === 'Dikonfirmasi'
+      ? 'Reservasi kamu telah DIKONFIRMASI! Kami tunggu kedatangannya.'
+      : 'Maaf, reservasi kamu tidak dapat kami proses saat ini.';
+    sendNotification('user', {
+      title: status === 'Dikonfirmasi' ? '🎉 Reservasi Dikonfirmasi!' : '❌ Reservasi Ditolak',
+      body: notifBody,
+      icon: '/icons/icon-192x192.png',
+      data: { url: '/' }
+    });
     res.json({ message: `Reservasi berhasil ${status}` });
   } catch (error) {
     res.status(500).json({ error: 'Gagal merubah status reservasi.' });
@@ -262,7 +372,8 @@ app.put('/api/reservations/:id/status', async (req, res) => {
 // 5. API DASHBOARD (STATISTIK) & LOGIN ADMIN
 // ==========================================
 // [GET] Menghitung rekap data untuk grafik dan indikator di layar Admin
-app.get('/api/dashboard/summary', async (req, res) => {
+// TAMBAHAN: verifyToken -> statistik penjualan hanya untuk admin
+app.get('/api/dashboard/summary', verifyToken, async (req, res) => {
   try {
     const [salesData] = await db.query(`SELECT COUNT(id) AS total_pesanan, SUM(total_amount) AS total_omzet FROM orders WHERE status = 'Selesai'`);
     const [productData] = await db.query(`SELECT COUNT(id) AS total_produk FROM menus`);
@@ -289,16 +400,74 @@ app.get('/api/dashboard/summary', async (req, res) => {
   }
 });
 
-// [POST] Verifikasi kredensial Admin
-app.post('/api/login', (req, res) => {
+// [POST] Login Admin -> menghasilkan JWT asli
+// Dibiarkan TERBUKA (tanpa verifyToken, wajar karena ini justru tempat
+// token itu dibuat) tapi dibatasi loginLimiter (maks 5x percobaan / 15 menit)
+// untuk mencegah brute-force tebak password.
+// Kredensial admin & hash password diambil dari .env (ADMIN_USERNAME &
+// ADMIN_PASSWORD_HASH), bukan hardcode di kode seperti versi sebelumnya.
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
-  // Keamanan level dasar untuk aplikasi UMKM. 
-  // Bisa di-upgrade dengan enkripsi bcrypt jika diperlukan di masa depan.
-  if (username === 'admin' && password === 'semesta123') {
-    res.json({ success: true, message: "Akses diizinkan.", token: "semesta-super-secret-token-2026" });
-  } else {
-    res.status(401).json({ error: "Username atau Password salah!" });
+
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username dan password wajib diisi." });
   }
+
+  try {
+    // 1. Cek username
+    if (username !== process.env.ADMIN_USERNAME) {
+      return res.status(401).json({ error: "Username atau Password salah!" });
+    }
+
+    // 2. Cek password terhadap hash bcrypt (bukan plaintext lagi)
+    const isMatch = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Username atau Password salah!" });
+    }
+
+    // 3. Buat JWT asli, ditandatangani pakai secret key dari .env
+    const token = jwt.sign(
+      { username, role: 'admin' },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+    );
+
+    res.json({ success: true, message: "Akses diizinkan.", token });
+  } catch (error) {
+    console.error("Login Error:", error.message);
+    res.status(500).json({ error: "Terjadi kesalahan pada server." });
+  }
+});
+
+// ==========================================
+// 6. API PUSH NOTIFICATION
+// ==========================================
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/push/subscribe/user', (req, res) => {
+  const subscription = req.body;
+  if (!subscription?.endpoint) return res.status(400).json({ error: 'Subscription tidak valid' });
+  const exists = subscriptions.user.find(s => s.endpoint === subscription.endpoint);
+  if (!exists) subscriptions.user.push(subscription);
+  res.status(201).json({ message: 'Subscription user tersimpan' });
+});
+
+app.post('/api/push/subscribe/admin', (req, res) => {
+  const subscription = req.body;
+  if (!subscription?.endpoint) return res.status(400).json({ error: 'Subscription tidak valid' });
+  const exists = subscriptions.admin.find(s => s.endpoint === subscription.endpoint);
+  if (!exists) subscriptions.admin.push(subscription);
+  res.status(201).json({ message: 'Subscription admin tersimpan' });
+});
+
+app.delete('/api/push/unsubscribe', (req, res) => {
+  const { endpoint, role } = req.body;
+  if (subscriptions[role]) {
+    subscriptions[role] = subscriptions[role].filter(s => s.endpoint !== endpoint);
+  }
+  res.json({ message: 'Unsubscribe berhasil' });
 });
 
 // Menjalankan server pada port yang ditentukan

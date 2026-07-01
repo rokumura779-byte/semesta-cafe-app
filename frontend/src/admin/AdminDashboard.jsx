@@ -1,11 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import React, { useRef } from 'react';
+// PERBAIKAN: import axios (biasa) diganti axiosAdmin, karena GET
+// /api/dashboard/summary sekarang diproteksi verifyToken di backend dan
+// wajib bawa token JWT admin. axiosAdmin otomatis menempelkan header
+// Authorization di setiap request (lihat frontend/src/config/axiosAdmin.js).
+import axiosAdmin from '../config/axiosAdmin';
 // Import library untuk membuat grafik interaktif (Pie Chart)
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 // Import library untuk fitur export laporan
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import html2pdf from 'html2pdf.js';
+
+// TAMBAHAN: OPTIMASI WEB - REACT QUERY (CACHING)
+// useQuery menggantikan pola lama (useState + useEffect + axios.get + setInterval manual).
+// Manfaatnya: data otomatis di-cache, request tidak diulang sia-sia, dan
+// auto-refetch terkelola dengan baik (tidak perlu clearInterval manual lagi).
+import { useQuery } from '@tanstack/react-query';
+
+// TAMBAHAN: Import konstanta URL backend (menggantikan hardcode localhost/Railway)
+import { API_BASE_URL } from '../config/api';
 
 // Import ikon modern untuk antarmuka pengguna
 import { 
@@ -21,41 +34,36 @@ import {
 import './Admin.css';
 
 function AdminDashboard() {
-  // --- 1. STATE MANAGEMENT ---
-  // Menyimpan seluruh data agregasi (ringkasan) dari database
-  const [dashboardData, setDashboardData] = useState({
+  // ==========================================
+  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching + Auto Refetch)
+  // ==========================================
+  // PERUBAHAN: Bagian ini sebelumnya menggunakan kombinasi:
+  //   - useState (dashboardData) untuk menyimpan data
+  //   - useEffect + setInterval untuk fetch berulang setiap 5 detik
+  //   - fungsi fetchDashboardData manual dengan try/catch
+  //
+  // Sekarang digantikan oleh satu hook useQuery yang menangani semuanya:
+  //   - queryKey: ['dashboardSummary'] -> nama unik untuk cache data ini
+  //   - queryFn: fungsi yang mengambil data dari API
+  //   - refetchInterval: 5000 -> tetap auto-refresh tiap 5 detik (sama seperti sebelumnya),
+  //     tapi sekarang React Query yang mengatur lifecycle-nya (auto cleanup saat
+  //     komponen unmount, tidak perlu clearInterval manual lagi)
+  const { data: dashboardData = {
     summary: { total_pesanan: 0, total_omzet: 0, total_produk: 0 },
     statusDistribution: [],
     topMenus: []
+  } } = useQuery({
+    queryKey: ['dashboardSummary'],
+    queryFn: async () => {
+      // PERBAIKAN: axios -> axiosAdmin (GET /api/dashboard/summary diproteksi verifyToken di backend)
+      const response = await axiosAdmin.get(`${API_BASE_URL}/api/dashboard/summary`);
+      return response.data;
+    },
+    refetchInterval: 5000, // Tetap auto-refresh tiap 5 detik seperti sebelumnya
   });
 
   // Referensi khusus yang digunakan oleh html2pdf untuk 'memotret' area tertentu menjadi PDF
   const reportRef = useRef();
-
-  // --- 2. LOGIKA PENGAMBILAN DATA (API CALL) ---
-  const fetchDashboardData = async () => {
-    try {
-      // Mengambil data ringkasan bisnis dari backend API
-      const response = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/dashboard/summary');
-      setDashboardData(response.data);
-    } catch (error) {
-      console.error("Gagal mengambil data dashboard:", error);
-    }
-  };
-
-  // --- 3. LOGIKA AUTO-REFRESH (REAL-TIME POLLING) ---
-  useEffect(() => {
-    fetchDashboardData(); // Tarik data saat pertama kali dashboard dibuka
-
-    // Membuat siklus penarikan data otomatis setiap 5 detik (5000 ms).
-    // Ini membuat dashboard seolah-olah real-time tanpa perlu me-refresh seluruh halaman.
-    const interval = setInterval(() => {
-      fetchDashboardData();
-    }, 5000);
-
-    // Fungsi pembersihan: Hentikan siklus jika admin pindah ke halaman lain (misal: halaman Menu)
-    return () => clearInterval(interval);
-  }, []);
 
   // --- 4. UTILITAS TAMPILAN ---
   // Palet warna khusus untuk grafik Pie Chart (Hijau, Oranye, Merah, Biru)
@@ -221,8 +229,11 @@ function AdminDashboard() {
           </div>
           
           {/* Pembungkus Grafik Recharts agar responsif terhadap ukuran layar */}
+          {/* TAMBAHAN: width="100%" height="100%" dipasang eksplisit di ResponsiveContainer 
+              untuk menghilangkan warning recharts "width(-1) and height(-1)" yang muncul 
+              saat data masih kosong di render pertama (sebelum useQuery selesai fetch) */}
           <div style={{ width: '100%', height: '240px' }}>
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 
                   data={dashboardData.statusDistribution} 

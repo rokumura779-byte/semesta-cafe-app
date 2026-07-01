@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+// PERBAIKAN: import axios (biasa) diganti axiosAdmin, karena semua endpoint
+// yang dipanggil di file ini (menus, categories) sekarang butuh token JWT
+// admin. axiosAdmin otomatis menempelkan header Authorization di setiap
+// request (lihat frontend/src/config/axiosAdmin.js).
+import axiosAdmin from '../config/axiosAdmin';
 // Import sekumpulan ikon untuk mempercantik antarmuka
 import { 
   FaEdit, FaTrash, FaPlus, FaUtensils, FaCloudUploadAlt, 
   FaSave, FaTimes, FaImage, FaCheckCircle, FaExclamationTriangle, FaListUl 
 } from 'react-icons/fa';
+
+// TAMBAHAN: OPTIMASI WEB - REACT QUERY (CACHING)
+// useQuery menggantikan fetch manual untuk data 'menus' dan 'categories'.
+// useQueryClient dipakai untuk memberi tahu React Query supaya menandai
+// cache 'menus'/'categories' basi (invalidate) setelah create/update/delete,
+// sehingga tabel otomatis ter-refresh tanpa perlu fetchData() manual.
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+// TAMBAHAN: Import konstanta URL backend (menggantikan hardcode localhost)
+import { API_BASE_URL } from '../config/api';
+
 import './Admin.css';
 
 export default function AdminMenu() {
@@ -12,10 +27,15 @@ export default function AdminMenu() {
   // 1. STATE MANAGEMENT (Penyimpanan Data Sementara)
   // ==========================================
   
-  // Data dari Database
-  const [menus, setMenus] = useState([]); // Menyimpan daftar seluruh menu
-  const [categories, setCategories] = useState([]); // Menyimpan daftar kategori
-  
+  // PERUBAHAN: 'menus' dan 'categories' sebelumnya disimpan pakai useState dan
+  // di-update manual lewat fetchData(). Sekarang keduanya diambil dari
+  // useQuery di bawah (lihat bagian "TAMBAHAN: useQuery").
+
+  // TAMBAHAN: queryClient dipakai untuk invalidateQueries setelah
+  // create/update/delete, supaya cache 'menus' & 'categories' otomatis
+  // ditandai basi dan React Query langsung fetch ulang data terbaru.
+  const queryClient = useQueryClient();
+
   // Status Mode UI
   const [isEditing, setIsEditing] = useState(false); // Mode Tambah atau Mode Edit
   const [editId, setEditId] = useState(null); // ID menu yang sedang diedit
@@ -34,29 +54,43 @@ export default function AdminMenu() {
   });
 
   // ==========================================
-  // 2. FUNGSI SINKRONISASI DATA (API CALLS)
+  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching)
   // ==========================================
-  const fetchData = async () => {
-    try {
-      // 1. Tarik data menu
-      const resMenu = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/menus');
-      setMenus(resMenu.data);
-      
-      // 2. Tarik data kategori untuk mengisi Dropdown
-      const resCat = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/categories');
-      setCategories(resCat.data);
+  // PERUBAHAN: Sebelumnya ada satu fungsi fetchData() yang menarik 'menus'
+  // dan 'categories' sekaligus lewat useEffect (hanya dijalankan sekali saat
+  // halaman dibuka, tidak ada polling di sini). Sekarang dipecah menjadi
+  // dua useQuery terpisah. Tidak ada refetchInterval karena data menu &
+  // kategori tidak butuh auto-refresh tiap beberapa detik seperti dashboard
+  // atau orders -- cukup mengandalkan staleTime default dan invalidateQueries
+  // saat ada perubahan data (create/update/delete).
+  const { data: menus = [] } = useQuery({
+    queryKey: ['menus', 'all'],
+    queryFn: async () => {
+      // PERBAIKAN: axios -> axiosAdmin (endpoint GET /api/menus sendiri
+      // memang dibiarkan terbuka di backend, tapi tetap aman dikirim token
+      // karena backend cuma abaikan token di route yang tidak pakai verifyToken)
+      const response = await axiosAdmin.get(`${API_BASE_URL}/api/menus`);
+      return response.data;
+    },
+  });
 
-      // Otomatis memilih kategori pertama jika form dalam keadaan kosong
-      if (!formData.category_id && resCat.data.length > 0) {
-        setFormData(prev => ({ ...prev, category_id: resCat.data[0].id }));
-      }
-    } catch (error) { 
-      console.error(error); 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      // PERBAIKAN: axios -> axiosAdmin
+      const response = await axiosAdmin.get(`${API_BASE_URL}/api/categories`);
+      return response.data;
+    },
+  });
+
+  // TAMBAHAN: useEffect kecil ini menggantikan logika auto-select kategori
+  // pertama yang dulu ada di dalam fetchData(). Sekarang efek ini berjalan
+  // setiap kali data 'categories' dari useQuery berubah/selesai dimuat.
+  useEffect(() => {
+    if (!formData.category_id && categories.length > 0) {
+      setFormData(prev => ({ ...prev, category_id: categories[0].id }));
     }
-  };
-
-  // Efek yang dijalankan sekali saat halaman ini pertama kali dibuka
-  useEffect(() => { fetchData(); }, []);
+  }, [categories]);
 
   // Fungsi Helper untuk memunculkan notifikasi selama 3.5 detik
   const showStatus = (type, text) => {
@@ -72,10 +106,17 @@ export default function AdminMenu() {
     if (!newCatName.trim()) return; // Cegah simpan nama kosong
     
     try {
-      await axios.post('https://semesta-cafe-app-production.up.railway.app/api/categories', { name: newCatName });
+      // PERBAIKAN: axios -> axiosAdmin. Endpoint POST /api/categories sudah
+      // diproteksi verifyToken di backend, jadi WAJIB pakai axiosAdmin
+      // supaya token JWT ikut terkirim -- kalau tetap pakai axios biasa,
+      // request ini bakal ditolak backend dengan status 401.
+      await axiosAdmin.post(`${API_BASE_URL}/api/categories`, { name: newCatName });
       setNewCatName(''); // Kosongkan input
       setShowCatForm(false); // Tutup panel
-      fetchData(); // Refresh dropdown kategori agar yang baru muncul
+      // PERUBAHAN: fetchData() diganti invalidateQueries(['categories']).
+      // Ini memberi tahu React Query bahwa cache 'categories' sudah basi,
+      // sehingga otomatis fetch ulang dan dropdown kategori langsung ter-update.
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       showStatus('success', 'Kategori baru berhasil dibuat!');
     } catch (error) { 
       showStatus('error', 'Gagal menambah kategori.'); 
@@ -123,15 +164,19 @@ export default function AdminMenu() {
       };
       
       if (isEditing) {
-        await axios.put(`https://semesta-cafe-app-production.up.railway.app/api/menus/${editId}`, payload);
+        // PERBAIKAN: axios -> axiosAdmin (PUT /api/menus/:id butuh token admin)
+        await axiosAdmin.put(`${API_BASE_URL}/api/menus/${editId}`, payload);
         showStatus('success', 'Menu diperbarui!');
       } else {
-        await axios.post('https://semesta-cafe-app-production.up.railway.app/api/menus', payload);
+        // PERBAIKAN: axios -> axiosAdmin (POST /api/menus butuh token admin)
+        await axiosAdmin.post(`${API_BASE_URL}/api/menus`, payload);
         showStatus('success', 'Menu baru diposting!');
       }
       
       resetForm();
-      fetchData(); // Muat ulang tabel setelah simpan berhasil
+      // PERUBAHAN: fetchData() diganti invalidateQueries(['menus']), supaya
+      // tabel menu otomatis ter-refresh setelah simpan/edit berhasil.
+      queryClient.invalidateQueries({ queryKey: ['menus'] });
     } catch (error) { 
       showStatus('error', error.response?.data?.error || 'Gagal menyimpan menu.');
     } finally { 
@@ -162,9 +207,11 @@ export default function AdminMenu() {
   const handleHapus = async (id, namaMenu) => {
     if (!window.confirm(`Hapus "${namaMenu}"?`)) return;
     try {
-      await axios.delete(`https://semesta-cafe-app-production.up.railway.app/api/menus/${id}`);
+      // PERBAIKAN: axios -> axiosAdmin (DELETE /api/menus/:id butuh token admin)
+      await axiosAdmin.delete(`${API_BASE_URL}/api/menus/${id}`);
       showStatus('success', 'Berhasil dihapus.');
-      fetchData();
+      // PERUBAHAN: fetchData() diganti invalidateQueries(['menus'])
+      queryClient.invalidateQueries({ queryKey: ['menus'] });
     } catch (error) { 
       showStatus('error', 'Gagal menghapus.'); 
     }
@@ -288,7 +335,12 @@ export default function AdminMenu() {
             <tbody>
               {menus.map((menu) => (
                 <tr key={menu.id} className="table-row-hover">
-                  <td><div className="menu-image-container">{menu.image_url ? <img src={menu.image_url} alt={menu.name} /> : <FaImage color="#E2E8F0" />}</div></td>
+                  {/* TAMBAHAN: loading="lazy" pada gambar tabel menu (Optimasi Web - Lazy 
+                      Loading Gambar). Browser akan menunda pengunduhan gambar sampai baris 
+                      tabel ini benar-benar terlihat di viewport, bukan langsung mengunduh 
+                      semua gambar menu saat halaman dibuka. Berguna karena gambar di sini 
+                      adalah Base64 yang ukurannya cukup besar dan jumlah menu bisa banyak. */}
+                  <td><div className="menu-image-container">{menu.image_url ? <img src={menu.image_url} alt={menu.name} loading="lazy" /> : <FaImage color="#E2E8F0" />}</div></td>
                   <td><div style={{ fontWeight: 'bold' }}>{menu.name}</div><div style={{ fontSize: '10px', color: '#94A3B8' }}>#ID-{menu.id}</div></td>
                   <td><span className="category-badge">{menu.category || 'Belum Set'}</span></td>
                   <td><span style={{ fontWeight: '800', color: '#1B8A4C' }}>Rp {parseInt(menu.price).toLocaleString('id-ID')}</span></td>

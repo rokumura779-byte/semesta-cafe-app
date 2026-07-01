@@ -1,6 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { FaTimes, FaLock, FaMugHot, FaChair, FaInfoCircle, FaRegCalendarCheck } from "react-icons/fa";
+
+// TAMBAHAN: OPTIMASI WEB - REACT QUERY (CACHING)
+// useQuery menggantikan fetch manual + useEffect untuk data 'reservations'.
+// Manfaatnya: kalau pelanggan buka-tutup modal reservasi berkali-kali,
+// data meja yang terisi tidak di-fetch ulang setiap kali selama masih
+// dalam staleTime yang dikonfigurasi global (10 detik di App.jsx).
+import { useQuery } from '@tanstack/react-query';
+
+// TAMBAHAN: Import konstanta URL backend (menggantikan hardcode localhost)
+import { API_BASE_URL } from '../config/api';
+
 import "../styles/reservation.css";
 
 const TIMES = [
@@ -9,7 +20,6 @@ const TIMES = [
 ];
 
 export default function Reservation({ onClose, onToast }) {
-  const [dbReservations, setDbReservations] = useState([]);
   const [selTable, setSelTable] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", date: "", time: "", guests: "", note: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,17 +29,25 @@ export default function Reservation({ onClose, onToast }) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split("T")[0];
 
-  useEffect(() => {
-    const fetchReservations = async () => {
-      try {
-        const response = await axios.get('https://semesta-cafe-app-production.up.railway.app/api/reservations');
-        setDbReservations(response.data);
-      } catch (error) {
-        console.error("Gagal mengambil data meja", error);
-      }
-    };
-    fetchReservations();
-  }, []);
+  // ==========================================
+  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching)
+  // ==========================================
+  // PERUBAHAN: Sebelumnya pakai useState(dbReservations) + useEffect untuk
+  // fetch sekali saat modal dibuka. Sekarang pakai useQuery tanpa refetchInterval
+  // (tidak butuh polling karena data reservasi tidak berubah sangat cepat).
+  // Manfaat utamanya adalah caching: kalau pelanggan menutup modal lalu
+  // membukanya lagi dalam waktu dekat (dalam staleTime 10 detik global),
+  // React Query tidak akan fetch ulang -- data langsung dari cache.
+  const { data: dbReservations = [] } = useQuery({
+    queryKey: ['reservations', 'user'],
+    queryFn: async () => {
+      // PERUBAHAN: URL sekarang memakai API_BASE_URL (sebelumnya hardcode localhost:5000)
+      const response = await axios.get(`${API_BASE_URL}/api/reservations`);
+      return response.data;
+    },
+    // Tidak ada refetchInterval: cukup sekali fetch saat modal dibuka.
+    // staleTime default (10 detik) dari konfigurasi global di App.jsx berlaku.
+  });
 
   const getLockedTables = () => {
     if (!form.date || !form.time) return []; 
@@ -66,7 +84,8 @@ export default function Reservation({ onClose, onToast }) {
 
     try {
       const guestsInt = parseInt(form.guests);
-      await axios.post('https://semesta-cafe-app-production.up.railway.app/api/reservations', {
+      // PERUBAHAN: URL sekarang memakai API_BASE_URL (sebelumnya hardcode localhost:5000)
+      await axios.post(`${API_BASE_URL}/api/reservations`, {
         customer_name: form.name,
         phone: form.phone,
         reservation_date: form.date,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   FaChartBar, 
@@ -10,6 +10,30 @@ import {
   FaChevronRight 
 } from 'react-icons/fa';
 import './Admin.css';
+
+// ==========================================
+// TAMBAHAN: OPTIMASI WEB - FALLBACK UNTUK SUSPENSE
+// ==========================================
+// Komponen kecil ini ditampilkan sementara saat halaman admin (Dashboard,
+// Orders, Menu, Reservations) sedang di-download oleh browser (lazy loading).
+// Ini dibutuhkan karena di App.jsx nanti komponen-komponen tersebut akan
+// diubah menjadi React.lazy(), yang mewajibkan ada <Suspense fallback={...}>
+// di suatu tempat membungkusnya.
+function PageLoadingFallback() {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      height: '60vh',
+      color: '#94A3B8',
+      fontSize: '14px',
+      fontWeight: '600'
+    }}>
+      Memuat halaman...
+    </div>
+  );
+}
 
 export default function AdminSidebar({ children }) {
   // State untuk mengontrol sidebar (Buka/Tutup)
@@ -184,7 +208,16 @@ export default function AdminSidebar({ children }) {
       </div>
 
       {/* AREA KONTEN (Dashboard, Menu, dll) */}
-      <div className="admin-content">{children}</div>
+      {/* TAMBAHAN: Suspense membungkus {children} di sini (bukan di App.jsx),
+          tujuannya supaya sidebar di kiri tetap langsung tampil utuh meskipun
+          komponen halaman di kanan (children) masih dalam proses di-download
+          oleh browser (karena nanti di App.jsx komponen halaman admin akan
+          memakai React.lazy() untuk code splitting / lazy loading). */}
+      <div className="admin-content">
+        <Suspense fallback={<PageLoadingFallback />}>
+          {children}
+        </Suspense>
+      </div>
     </div>
   );
 }

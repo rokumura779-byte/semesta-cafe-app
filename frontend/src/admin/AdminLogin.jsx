@@ -3,6 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 // Menggunakan react-icons untuk elemen input (Gembok & User) dan tombol masuk
 import { FaLock, FaUserShield, FaSignInAlt } from 'react-icons/fa'; 
+
+// Import konstanta URL backend agar konsisten dengan halaman admin lainnya.
+// Catatan: halaman ini TIDAK memakai useQuery karena login hanya proses
+// POST sekali saat submit form, bukan data fetching berulang.
+// Catatan: halaman ini juga TIDAK memakai axiosAdmin (yang ada interceptor JWT),
+// karena justru di sinilah token itu PERTAMA KALI dibuat — belum ada token
+// yang bisa disisipkan. axiosAdmin baru dipakai SETELAH login berhasil.
+import { API_BASE_URL } from '../config/api';
+
 import './Admin.css'; 
 
 export default function AdminLogin() {
@@ -36,18 +45,27 @@ export default function AdminLogin() {
     setIsLoading(true); // Mengaktifkan efek loading pada tombol
 
     try {
-      // Mengirim POST request ke API login di Railway
-      const response = await axios.post('https://semesta-cafe-app-production.up.railway.app/api/login', credentials);
+      // Kirim POST ke /api/login dengan username & password.
+      // Backend akan memverifikasi password dengan bcrypt.compare() terhadap
+      // hash di .env, lalu jika cocok membuat JWT asli dengan jwt.sign().
+      // Rate limiter di backend membatasi maksimal 5x percobaan per 15 menit.
+      const response = await axios.post(`${API_BASE_URL}/api/login`, credentials);
       
-      // Jika Backend menyatakan kombinasi username & password valid
+      // Jika Backend menyatakan kombinasi username & password valid:
       if (response.data.success) {
-        // Simpan token akses rahasia ke dalam LocalStorage browser
+        // Simpan JWT yang diterima dari backend ke dalam LocalStorage.
+        // Token ini nantinya otomatis disisipkan di setiap request admin
+        // oleh axiosAdmin (src/config/axiosAdmin.js) sebagai header:
+        //   Authorization: Bearer <token>
         localStorage.setItem('adminToken', response.data.token);
-        // Lempar user ke halaman Dashboard Utama Admin
+        // Arahkan admin ke halaman Dashboard Utama
         navigate('/admin');
       }
     } catch (err) {
-      // Jika gagal, tangkap pesan error spesifik dari backend atau pesan fallback
+      // Tangkap pesan error dari backend:
+      // - "Username atau password salah" -> salah kredensial
+      // - "Terlalu banyak percobaan login..." -> kena rate limiter
+      // - "Koneksi ke server gagal..." -> backend tidak jalan / network error
       setError(err.response?.data?.error || 'Koneksi ke server gagal. Coba lagi nanti.');
     } finally {
       setIsLoading(false); // Selalu matikan status loading di akhir proses
