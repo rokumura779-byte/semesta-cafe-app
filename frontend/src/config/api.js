@@ -9,7 +9,7 @@
 //
 // Saat ini di-set ke localhost karena sedang development/testing lokal.
 // Nanti kalau mau deploy ulang ke Railway, tinggal ganti nilai di bawah ini.
-export const API_BASE_URL = "http://localhost:5000";
+export const API_BASE_URL = "semesta-cafe-app-production-08e0.up.railway.app";
 
 // Contoh pemakaian di komponen lain:
 // import { API_BASE_URL } from "../config/api";
