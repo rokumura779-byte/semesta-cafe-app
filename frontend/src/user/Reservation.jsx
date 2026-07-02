@@ -23,6 +23,12 @@ export default function Reservation({ onClose, onToast }) {
   const [selTable, setSelTable] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", date: "", time: "", guests: "", note: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // TAMBAHAN: pesan error ditampilkan LANGSUNG di dalam modal (bukan cuma
+  // lewat onToast). Sebelumnya pesan "meja sudah dipesan" dari backend
+  // sebenarnya sudah terkirim, tapi ketutup karena modal ini punya
+  // z-index sangat tinggi (99999) yang menutupi notifikasi toast di
+  // App.jsx. Dengan pesan inline, error PASTI kelihatan pelanggan.
+  const [errorMsg, setErrorMsg] = useState("");
 
   // MENGATUR MINIMAL H-1 (Besok)
   const tomorrow = new Date();
@@ -30,23 +36,30 @@ export default function Reservation({ onClose, onToast }) {
   const minDate = tomorrow.toISOString().split("T")[0];
 
   // ==========================================
-  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching)
+  // TAMBAHAN: OPTIMASI WEB - useQuery (Caching + Polling)
   // ==========================================
   // PERUBAHAN: Sebelumnya pakai useState(dbReservations) + useEffect untuk
-  // fetch sekali saat modal dibuka. Sekarang pakai useQuery tanpa refetchInterval
-  // (tidak butuh polling karena data reservasi tidak berubah sangat cepat).
-  // Manfaat utamanya adalah caching: kalau pelanggan menutup modal lalu
-  // membukanya lagi dalam waktu dekat (dalam staleTime 10 detik global),
-  // React Query tidak akan fetch ulang -- data langsung dari cache.
-  const { data: dbReservations = [] } = useQuery({
+  // fetch sekali saat modal dibuka. Sekarang pakai useQuery.
+  //
+  // PERBAIKAN: endpoint diganti ke /api/reservations/availability (endpoint
+  // PUBLIK yang hanya mengembalikan tanggal/jam/nomor meja/status, tanpa
+  // data pribadi pelanggan). Endpoint /api/reservations biasa sekarang
+  // diproteksi verifyToken khusus admin, jadi tidak bisa lagi dipanggil
+  // langsung dari halaman reservasi pelanggan.
+  //
+  // PERBAIKAN 2: ditambahkan refetchInterval 5 detik (sama seperti pola di
+  // AdminReservations.jsx). Sebelumnya data cuma diambil SEKALI saat modal
+  // dibuka, jadi kalau ada pelanggan lain reservasi meja yang sama SELAGI
+  // form ini masih terbuka, status "terkunci"-nya baru muncul kalau modal
+  // ditutup-buka ulang. Dengan polling, status meja di layar otomatis
+  // ter-update setiap 5 detik tanpa perlu refresh manual.
+  const { data: dbReservations = [], refetch: refetchAvailability } = useQuery({
     queryKey: ['reservations', 'user'],
     queryFn: async () => {
-      // PERUBAHAN: URL sekarang memakai API_BASE_URL (sebelumnya hardcode localhost:5000)
-      const response = await axios.get(`${API_BASE_URL}/api/reservations`);
+      const response = await axios.get(`${API_BASE_URL}/api/reservations/availability`);
       return response.data;
     },
-    // Tidak ada refetchInterval: cukup sekali fetch saat modal dibuka.
-    // staleTime default (10 detik) dari konfigurasi global di App.jsx berlaku.
+    refetchInterval: 5000,
   });
 
   const getLockedTables = () => {
@@ -72,6 +85,7 @@ export default function Reservation({ onClose, onToast }) {
     setForm((prev) => ({ ...prev, [name]: value }));
     if (name === 'date' || name === 'time') {
       setSelTable(null); 
+      setErrorMsg(""); // TAMBAHAN: bersihkan pesan error lama saat ganti jadwal
     }
   };
 
@@ -81,6 +95,7 @@ export default function Reservation({ onClose, onToast }) {
     if (!form.name || !form.phone || !form.guests) { onToast("Lengkapi semua data reservasi!"); return; }
 
     setIsSubmitting(true);
+    setErrorMsg(""); // TAMBAHAN: bersihkan pesan error sebelumnya tiap kali coba submit lagi
 
     try {
       const guestsInt = parseInt(form.guests);
@@ -100,7 +115,21 @@ export default function Reservation({ onClose, onToast }) {
       onClose();
       onToast("Reservasi berhasil dikirim! Menunggu konfirmasi Admin.");
     } catch (error) {
-      onToast("Gagal mengirim reservasi. Silakan coba lagi.");
+      // PERBAIKAN: pesan error spesifik dari backend (misal "meja sudah
+      // dipesan") sekarang ditampilkan INLINE di dalam modal (lihat
+      // errorMsg di JSX bawah), bukan cuma lewat onToast yang ketutup
+      // modal. onToast tetap dipanggil sebagai cadangan/konsistensi.
+      const msg = error.response?.data?.error || "Gagal mengirim reservasi. Silakan coba lagi.";
+      setErrorMsg(msg);
+      onToast(msg);
+
+      // TAMBAHAN: kalau submit gagal karena meja ternyata sudah dipesan
+      // (baru saja diambil pelanggan lain), langsung tarik ulang data
+      // ketersediaan meja supaya kotak meja itu SEKETIKA berubah jadi
+      // "Terisi" (terkunci) di layar, dan batalkan pilihan meja pelanggan
+      // ini supaya tidak bisa coba submit ulang ke meja yang sama.
+      refetchAvailability();
+      setSelTable(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -225,6 +254,17 @@ export default function Reservation({ onClose, onToast }) {
               <input name="note" type="text" placeholder="Cth: Area no smoking / Bawa bayi" value={form.note} onChange={handleChange} disabled={isSubmitting} />
             </div>
           </div>
+
+          {/* TAMBAHAN: Banner Error Inline -- muncul kalau backend menolak
+              (misal meja sudah dipesan orang lain). Ditaruh persis di atas
+              tombol submit supaya pasti kelihatan & posisinya masuk akal
+              secara UX (dekat aksi yang baru saja gagal). */}
+          {errorMsg && (
+            <div className="rs-error-banner animate-pop">
+              <FaLock className="rs-error-icon" />
+              <p>{errorMsg}</p>
+            </div>
+          )}
 
           {/* TOMBOL SUBMIT */}
           <button className="rs-submit-btn" onClick={submit} disabled={isSubmitting}>

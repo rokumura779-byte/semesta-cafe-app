@@ -322,7 +322,29 @@ app.post('/api/orders/:id/pay', verifyToken, async (req, res) => {
 // Dibiarkan TERBUKA karena ini dipanggil pelanggan, bukan aksi admin.
 app.post('/api/reservations', async (req, res) => {
   const { customer_name, phone, reservation_date, reservation_time, guests, notes, table_number } = req.body;
+
+  if (!customer_name || !phone || !reservation_date || !reservation_time || !guests || !table_number) {
+    return res.status(400).json({ error: 'Semua data reservasi wajib diisi.' });
+  }
+
   try {
+    // TAMBAHAN: Cek bentrok meja di BACKEND (bukan cuma disembunyikan di UI
+    // seperti sebelumnya). Ini yang mencegah 2 pelanggan reservasi meja +
+    // tanggal + jam yang sama secara bersamaan (race condition yang tidak
+    // bisa dicegah kalau validasinya cuma ada di frontend).
+    const [existing] = await db.query(
+      `SELECT id FROM reservations 
+       WHERE table_number = ? 
+       AND reservation_date = ? 
+       AND reservation_time = ? 
+       AND status != 'Dibatalkan'`,
+      [table_number, reservation_date, reservation_time]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ error: `Maaf, ${table_number} sudah dipesan untuk jadwal tersebut. Silakan pilih meja atau jadwal lain.` });
+    }
+
     const [result] = await db.query(
       `INSERT INTO reservations (customer_name, phone, reservation_date, reservation_time, guests, notes, table_number) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [customer_name, phone, reservation_date, reservation_time, guests, notes || '', table_number || 'Belum Set']
@@ -333,8 +355,22 @@ app.post('/api/reservations', async (req, res) => {
   }
 });
 
-// [GET] Admin menarik seluruh daftar reservasi
-// TAMBAHAN: verifyToken -> daftar reservasi hanya boleh dilihat admin
+// [GET] PUBLIK: dipakai halaman reservasi pelanggan buat cek meja yang sudah terisi.
+// Sengaja HANYA balikin tanggal, jam, nomor meja, & status -- TANPA nama
+// pelanggan/nomor HP, supaya aman diakses tanpa login.
+app.get('/api/reservations/availability', async (req, res) => {
+  try {
+    const [reservations] = await db.query(
+      `SELECT reservation_date, reservation_time, table_number, status FROM reservations`
+    );
+    res.json(reservations);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data ketersediaan meja.' });
+  }
+});
+
+// [GET] Admin menarik seluruh daftar reservasi (data lengkap, termasuk nama & HP)
+// TAMBAHAN: verifyToken -> daftar reservasi lengkap hanya boleh dilihat admin
 app.get('/api/reservations', verifyToken, async (req, res) => {
   try {
     const [reservations] = await db.query(`SELECT * FROM reservations ORDER BY created_at DESC`);

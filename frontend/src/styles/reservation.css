@@ -106,6 +106,27 @@
 
 .rs-info-icon { margin-top: 2px; flex-shrink: 0; }
 
+/* TAMBAHAN: Banner Error (dipakai saat backend menolak reservasi, misal
+   meja sudah dipesan). Sengaja dibuat merah supaya jelas beda dari banner
+   info H-1 di atas yang warnanya kuning. */
+.rs-error-banner {
+  background-color: #FEE2E2;
+  border: 1px solid #FCA5A5;
+  color: #B91C1C;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 15px;
+  line-height: 1.5;
+}
+
+.rs-error-banner p { margin: 0; }
+.rs-error-icon { margin-top: 2px; flex-shrink: 0; }
+
 /* Label Seksi Form */
 .rs-section-title {
   font-size: 14px;
